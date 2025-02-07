@@ -1,0 +1,147 @@
+Turbo Assembler	 Version 4.1	    02/07/25 14:44:34	    Page 1
+tablet.asm
+
+
+
+      1	0000			     .model tiny
+      2				     .186
+      3				     locals @@
+      4	0000			     .code
+      5				     org 100h
+      6	      =B800		     VIDEOSEG equ 0b800h
+      7
+      8	0100			     start:
+      9					     ;call print_msg
+     10					     ;call show_tablet
+     11	0100  B8 0005			     mov ax, 5
+     12	0103  BB 0028			     mov bx, 40
+     13	0106  B9 000A			     mov cx, 10
+     14	0109  E8 002A			     call draw_line
+     15	010C  B8 4C00			     mov ax, 4c00h
+     16	010F  CD 21			     int 21h
+     17
+     18
+     19
+     20				     ;##########################################
+     21				     ;		     print_msg
+     22				     ;------------------------------------------
+     23	0111  42 72 65 61 6B 50	6F+  msg_string	db 'BreakPoint$'
+     24	      69 6E 74 24
+     25				     ;------------------------------------------
+     26				     ; Print string,
+     27				     ;	 placed	in msg_string asm variable
+     28				     ; Entry: None
+     29				     ; Exit: None
+     30				     ; Destr: AX, DX
+     31				     ;------------------------------------------
+     32	011C			     print_msg	     proc
+     33	011C  B4 09				     mov ah, 09h
+     34	011E  BA 0111r				     mov dx, offset msg_string
+     35	0121  CD 21				     int 21h
+     36	0123  C3				     ret
+     37	0124					     endp
+     38				     ;------------------------------------------
+     39				     ;##########################################
+     40
+     41
+     42				     ;##########################################
+     43				     ;		     show_tablet
+     44				     ;------------------------------------------
+     45
+     46				     ;------------------------------------------
+     47				     ; Show tablet
+     48				     ; Entry: None
+     49				     ; Exit: None
+     50				     ; Destr: AX, BX, ES,
+     51				     ;------------------------------------------
+     52	0124			     show_tablet     proc
+     53	0124  B8 B800				     mov ax, VIDEOSEG
+     54	0127  8E C0				     mov es, ax
+     55	0129  BB 0370				     mov bx, 5*80*2 + 40*2
+     56	012C  26: C6 07	41			     mov byte ptr es:[bx], 'A'
+     57	0130  26: C6 47	01 EE			     mov byte ptr es:[bx+1], 11101110b
+Turbo Assembler	 Version 4.1	    02/07/25 14:44:34	    Page 2
+tablet.asm
+
+
+
+     58
+     59	0135  C3				     ret
+     60	0136					     endp
+     61				     ;------------------------------------------
+     62				     ;##########################################
+     63
+     64
+     65				     ;##########################################
+     66				     ;		     draw_line
+     67				     ;------------------------------------------
+     68
+     69				     ;------------------------------------------
+     70				     ; draws a line at coords (AX, BX)
+     71				     ; with length = CX
+     72				     ; Entry: AX, BX, CX
+     73				     ; Exit: None
+     74				     ; Destr: AX, BX, ES, DX
+     75				     ; WARNING:	inf loop expected if length < 0
+     76				     ;------------------------------------------
+     77	0136			     draw_line	     proc
+     78	0136  BA B800				     mov dx, VIDEOSEG
+     79	0139  8E C2				     mov es, dx
+     80
+     81	013B  69 C0 00A0			     imul ax, 160
+     82	013F  6B DB 02				     imul bx, 2
+     83	0142  03 D8				     add bx, ax
+     84
+     85	0144			     @@while:
+     86	0144  83 C3 02				     add bx, 2
+     87	0147  26: C6 07	41			     mov byte ptr es:[bx], 'A'
+     88	014B  26: C6 47	01 EE			     mov byte ptr es:[bx+1], 11101110b
+     89	0150  E2 F2				     LOOP @@while
+     90
+     91
+     92	0152  C3				     ret
+     93	0153					     endp
+     94				     ;------------------------------------------
+     95				     ;##########################################
+     96
+     97
+     98
+     99				     end start
+Turbo Assembler	 Version 4.1	    02/07/25 14:44:34	    Page 3
+Symbol Table
+
+
+
+
+Symbol Name			  Type	 Value
+
+??DATE				  Text	 "02/07/25"
+??FILENAME			  Text	 "tablet  "
+??TIME				  Text	 "14:44:34"
+??VERSION			  Number 040A
+@32BIT				  Text	 0
+@@WHILE				  Near	 DGROUP:0144
+@CODE				  Text	 DGROUP
+@CODESIZE			  Text	 0
+@CPU				  Text	 0103H
+@CURSEG				  Text	 _TEXT
+@DATA				  Text	 DGROUP
+@DATASIZE			  Text	 0
+@FILENAME			  Text	 TABLET
+@INTERFACE			  Text	 000H
+@MODEL				  Text	 1
+@STACK				  Text	 DGROUP
+@WORDSIZE			  Text	 2
+DRAW_LINE			  Near	 DGROUP:0136
+MSG_STRING			  Byte	 DGROUP:0111
+PRINT_MSG			  Near	 DGROUP:011C
+SHOW_TABLET			  Near	 DGROUP:0124
+START				  Near	 DGROUP:0100
+VIDEOSEG			  Number B800
+
+Groups & Segments		  Bit Size Align  Combine Class
+
+DGROUP				  Group
+  _DATA				  16  0000 Word	  Public  DATA
+  _TEXT				  16  0153 Word	  Public  CODE
+

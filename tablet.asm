@@ -1,12 +1,17 @@
 .model tiny
+.186
+locals @@
 .code
 org 100h
-
 VIDEOSEG equ 0b800h
 
 start:
-        call print_msg
-        call show_tablet
+        ;call print_msg
+        ;call show_tablet
+        mov ax, 5
+        mov bx, 40
+        mov cx, 10
+        call draw_line
         mov ax, 4c00h
         int 21h
 
@@ -55,6 +60,38 @@ show_tablet     proc
 ;------------------------------------------
 ;##########################################
 
+
+;##########################################
+;               draw_line
+;------------------------------------------
+
+;------------------------------------------
+; draws a line at coords (AX, BX)
+; with length = CX
+; Entry: AX, BX, CX
+; Exit: None
+; Destr: AX, BX, ES, DX
+; WARNING: inf loop expected if length < 0
+;------------------------------------------
+draw_line       proc
+                mov dx, VIDEOSEG
+                mov es, dx
+
+                imul ax, 160
+                imul bx, 2
+                add bx, ax
+
+@@while:
+                add bx, 2
+                mov byte ptr es:[bx], 'A'
+                mov byte ptr es:[bx+1], 11101110b
+                LOOP @@while
+
+
+                ret
+                endp
+;------------------------------------------
+;##########################################
 
 
 
