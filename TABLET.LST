@@ -1,4 +1,4 @@
-Turbo Assembler	 Version 4.1	    02/07/25 14:44:34	    Page 1
+Turbo Assembler	 Version 4.1	    02/09/25 13:09:15	    Page 1
 tablet.asm
 
 
@@ -13,101 +13,148 @@ tablet.asm
       8	0100			     start:
       9					     ;call print_msg
      10					     ;call show_tablet
-     11	0100  B8 0005			     mov ax, 5
-     12	0103  BB 0028			     mov bx, 40
-     13	0106  B9 000A			     mov cx, 10
-     14	0109  E8 002A			     call draw_line
-     15	010C  B8 4C00			     mov ax, 4c00h
-     16	010F  CD 21			     int 21h
-     17
+     11	0100  B8 0000			     mov ax, 0
+     12	0103  BB 0000			     mov bx, 0
+     13	0106  B9 0032			     mov cx, 50
+     14	0109  BA 0032			     mov dx, 50
+     15	010C  E8 0047			     call draw_rect
+     16	010F  B8 4C00			     mov ax, 4c00h
+     17	0112  CD 21			     int 21h
      18
      19
-     20				     ;##########################################
-     21				     ;		     print_msg
-     22				     ;------------------------------------------
-     23	0111  42 72 65 61 6B 50	6F+  msg_string	db 'BreakPoint$'
-     24	      69 6E 74 24
-     25				     ;------------------------------------------
-     26				     ; Print string,
-     27				     ;	 placed	in msg_string asm variable
-     28				     ; Entry: None
-     29				     ; Exit: None
-     30				     ; Destr: AX, DX
-     31				     ;------------------------------------------
-     32	011C			     print_msg	     proc
-     33	011C  B4 09				     mov ah, 09h
-     34	011E  BA 0111r				     mov dx, offset msg_string
-     35	0121  CD 21				     int 21h
-     36	0123  C3				     ret
-     37	0124					     endp
-     38				     ;------------------------------------------
-     39				     ;##########################################
-     40
+     20
+     21				     ;##########################################
+     22				     ;		     print_msg
+     23				     ;------------------------------------------
+     24	0114  42 72 65 61 6B 50	6F+  msg_string	db 'BreakPoint$'
+     25	      69 6E 74 24
+     26				     ;------------------------------------------
+     27				     ; Print string,
+     28				     ;	 placed	in msg_string asm variable
+     29				     ; Entry: None
+     30				     ; Exit: None
+     31				     ; Destr: AX, DX
+     32				     ;------------------------------------------
+     33	011F			     print_msg	     proc
+     34	011F  B4 09				     mov ah, 09h
+     35	0121  BA 0114r				     mov dx, offset msg_string
+     36	0124  CD 21				     int 21h
+     37	0126  C3				     ret
+     38	0127					     endp
+     39				     ;------------------------------------------
+     40				     ;##########################################
      41
-     42				     ;##########################################
-     43				     ;		     show_tablet
-     44				     ;------------------------------------------
-     45
-     46				     ;------------------------------------------
-     47				     ; Show tablet
-     48				     ; Entry: None
-     49				     ; Exit: None
-     50				     ; Destr: AX, BX, ES,
-     51				     ;------------------------------------------
-     52	0124			     show_tablet     proc
-     53	0124  B8 B800				     mov ax, VIDEOSEG
-     54	0127  8E C0				     mov es, ax
-     55	0129  BB 0370				     mov bx, 5*80*2 + 40*2
-     56	012C  26: C6 07	41			     mov byte ptr es:[bx], 'A'
-     57	0130  26: C6 47	01 EE			     mov byte ptr es:[bx+1], 11101110b
-Turbo Assembler	 Version 4.1	    02/07/25 14:44:34	    Page 2
+     42
+     43				     ;##########################################
+     44				     ;		     show_tablet
+     45				     ;------------------------------------------
+     46
+     47				     ;------------------------------------------
+     48				     ; Show tablet
+     49				     ; Entry: None
+     50				     ; Exit: None
+     51				     ; Destr: AX, BX, ES,
+     52				     ;------------------------------------------
+     53	0127			     show_tablet     proc
+     54	0127  B8 B800				     mov ax, VIDEOSEG
+     55	012A  8E C0				     mov es, ax
+     56	012C  BB 0370				     mov bx, 5*80*2 + 40*2
+     57	012F  26: C6 07	41			     mov byte ptr es:[bx], 'A'
+Turbo Assembler	 Version 4.1	    02/09/25 13:09:15	    Page 2
 tablet.asm
 
 
 
-     58
-     59	0135  C3				     ret
-     60	0136					     endp
-     61				     ;------------------------------------------
-     62				     ;##########################################
-     63
+     58	0133  26: C6 47	01 EE			     mov byte ptr es:[bx+1], 11101110b
+     59
+     60	0138  C3				     ret
+     61	0139					     endp
+     62				     ;------------------------------------------
+     63				     ;##########################################
      64
-     65				     ;##########################################
-     66				     ;		     draw_line
-     67				     ;------------------------------------------
-     68
-     69				     ;------------------------------------------
-     70				     ; draws a line at coords (AX, BX)
-     71				     ; with length = CX
-     72				     ; Entry: AX, BX, CX
-     73				     ; Exit: None
-     74				     ; Destr: AX, BX, ES, DX
-     75				     ; WARNING:	inf loop expected if length < 0
-     76				     ;------------------------------------------
-     77	0136			     draw_line	     proc
-     78	0136  BA B800				     mov dx, VIDEOSEG
-     79	0139  8E C2				     mov es, dx
-     80
-     81	013B  69 C0 00A0			     imul ax, 160
-     82	013F  6B DB 02				     imul bx, 2
-     83	0142  03 D8				     add bx, ax
-     84
-     85	0144			     @@while:
-     86	0144  83 C3 02				     add bx, 2
-     87	0147  26: C6 07	41			     mov byte ptr es:[bx], 'A'
-     88	014B  26: C6 47	01 EE			     mov byte ptr es:[bx+1], 11101110b
-     89	0150  E2 F2				     LOOP @@while
-     90
+     65
+     66				     ;##########################################
+     67				     ;		     draw_line
+     68				     ;------------------------------------------
+     69
+     70				     ;------------------------------------------
+     71				     ; draws a line at coords (AX, BX)
+     72				     ; with length = CX
+     73				     ; Entry: AX, BX, CX
+     74				     ; Exit: None
+     75				     ; Destr: AX, BX, CX, DX, ES
+     76				     ; WARNING:	inf loop expected if length < 0
+     77				     ;------------------------------------------
+     78	0139			     draw_line	     proc
+     79	0139  BA B800				     mov dx, VIDEOSEG
+     80	013C  8E C2				     mov es, dx
+     81
+     82	013E  69 C0 00A0			     imul ax, 160
+     83	0142  6B DB 02				     imul bx, 2
+     84	0145  03 D8				     add bx, ax
+     85
+     86	0147			     @@while:						; while	(CX != 0):
+     87	0147  83 C3 02				     add bx, 2
+     88	014A  26: C6 07	41			     mov byte ptr es:[bx], 'A'
+     89	014E  26: C6 47	01 EE			     mov byte ptr es:[bx+1], 11101110b
+     90	0153  E2 F2				     LOOP @@while
      91
-     92	0152  C3				     ret
-     93	0153					     endp
-     94				     ;------------------------------------------
-     95				     ;##########################################
-     96
+     92
+     93	0155  C3				     ret
+     94	0156					     endp
+     95				     ;------------------------------------------
+     96				     ;##########################################
      97
      98
-     99				     end start
-Turbo Assembler	 Version 4.1	    02/07/25 14:44:34	    Page 3
+     99				     ;##########################################
+    100				     ;		     draw_rect
+    101				     ;------------------------------------------
+    102
+    103				     ;------------------------------------------
+    104				     ; draws a rectangle at coords (AX,	BX)
+    105				     ;	 with width = CX, height = DX
+    106				     ; Entry: AX, BX, CX, DX
+    107				     ; Exit: None
+    108				     ; Destr: AX, BX, CX, DX, ES
+    109				     ; WARNING:	inf loop expected
+    110				     ;	 if height/width < 0
+    111				     ;------------------------------------------
+    112	0156			     draw_rect	     proc
+    113
+    114
+Turbo Assembler	 Version 4.1	    02/09/25 13:09:15	    Page 3
+tablet.asm
+
+
+
+    115	0156			     @@while:						; while	(CX != 0):
+    116	0156  50				     push ax
+    117	0157  53				     push bx
+    118	0158  51				     push cx
+    119	0159  52				     push dx
+    120	015A  06				     push es
+    121	015B  E8 FFDB				     call draw_line
+    122	015E  07				     pop es
+    123	015F  5A				     pop dx
+    124	0160  59				     pop cx
+    125	0161  5B				     pop bx
+    126	0162  58				     pop ax
+    127
+    128
+    129	0163  40				     inc ax
+    130	0164  83 EA 01				     sub dx, 1
+    131	0167  83 FA 00				     cmp dx, 0
+    132	016A  7F EA				     jg	@@while
+    133
+    134
+    135	016C  C3				     ret
+    136	016D					     endp
+    137				     ;------------------------------------------
+    138				     ;##########################################
+    139
+    140
+    141				     end start
+Turbo Assembler	 Version 4.1	    02/09/25 13:09:15	    Page 4
 Symbol Table
 
 
@@ -115,12 +162,13 @@ Symbol Table
 
 Symbol Name			  Type	 Value
 
-??DATE				  Text	 "02/07/25"
+??DATE				  Text	 "02/09/25"
 ??FILENAME			  Text	 "tablet  "
-??TIME				  Text	 "14:44:34"
+??TIME				  Text	 "13:09:15"
 ??VERSION			  Number 040A
 @32BIT				  Text	 0
-@@WHILE				  Near	 DGROUP:0144
+@@WHILE				  Near	 DGROUP:0147
+@@WHILE				  Near	 DGROUP:0156
 @CODE				  Text	 DGROUP
 @CODESIZE			  Text	 0
 @CPU				  Text	 0103H
@@ -132,10 +180,11 @@ Symbol Name			  Type	 Value
 @MODEL				  Text	 1
 @STACK				  Text	 DGROUP
 @WORDSIZE			  Text	 2
-DRAW_LINE			  Near	 DGROUP:0136
-MSG_STRING			  Byte	 DGROUP:0111
-PRINT_MSG			  Near	 DGROUP:011C
-SHOW_TABLET			  Near	 DGROUP:0124
+DRAW_LINE			  Near	 DGROUP:0139
+DRAW_RECT			  Near	 DGROUP:0156
+MSG_STRING			  Byte	 DGROUP:0114
+PRINT_MSG			  Near	 DGROUP:011F
+SHOW_TABLET			  Near	 DGROUP:0127
 START				  Near	 DGROUP:0100
 VIDEOSEG			  Number B800
 
@@ -143,5 +192,5 @@ Groups & Segments		  Bit Size Align  Combine Class
 
 DGROUP				  Group
   _DATA				  16  0000 Word	  Public  DATA
-  _TEXT				  16  0153 Word	  Public  CODE
+  _TEXT				  16  016D Word	  Public  CODE
 

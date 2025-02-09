@@ -8,10 +8,11 @@ VIDEOSEG equ 0b800h
 start:
         ;call print_msg
         ;call show_tablet
-        mov ax, 5
-        mov bx, 40
-        mov cx, 10
-        call draw_line
+        mov ax, 0
+        mov bx, 0
+        mov cx, 20
+        mov dx, 20
+        call draw_rect
         mov ax, 4c00h
         int 21h
 
@@ -70,7 +71,7 @@ show_tablet     proc
 ; with length = CX
 ; Entry: AX, BX, CX
 ; Exit: None
-; Destr: AX, BX, ES, DX
+; Destr: AX, BX, CX, DX, ES
 ; WARNING: inf loop expected if length < 0
 ;------------------------------------------
 draw_line       proc
@@ -81,7 +82,7 @@ draw_line       proc
                 imul bx, 2
                 add bx, ax
 
-@@while:
+@@while:                                           ; while (CX != 0):
                 add bx, 2
                 mov byte ptr es:[bx], 'A'
                 mov byte ptr es:[bx+1], 11101110b
@@ -93,6 +94,47 @@ draw_line       proc
 ;------------------------------------------
 ;##########################################
 
+
+;##########################################
+;               draw_rect
+;------------------------------------------
+
+;------------------------------------------
+; draws a rectangle at coords (AX, BX)
+;   with width = CX, height = DX
+; Entry: AX, BX, CX, DX
+; Exit: None
+; Destr: AX, BX, CX, DX, ES
+; WARNING: inf loop expected
+;   if height/width < 0
+;------------------------------------------
+draw_rect       proc
+
+
+@@while:                                           ; while (CX != 0):
+                push ax
+                push bx
+                push cx
+                push dx
+                push es
+                call draw_line
+                pop es
+                pop dx
+                pop cx
+                pop bx
+                pop ax
+
+
+                inc ax
+                sub dx, 1
+                cmp dx, 0
+                jg @@while
+
+
+                ret
+                endp
+;------------------------------------------
+;##########################################
 
 
 end start
