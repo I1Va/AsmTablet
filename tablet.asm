@@ -6,6 +6,7 @@ org 100h
 VIDEOSEG equ 0b800h
 
 start:
+
         ;call print_msg
         ;call show_tablet
         mov ax, 5
@@ -98,43 +99,49 @@ draw_line       proc
 ;##########################################
 ;               draw_pat_line
 ;------------------------------------------
-line_pattern db '+-+$'
 ;------------------------------------------
 ; draws a line of 3 parts at coords (AX, BX)
+; line length = CX
+; line pattern adress = DX
 ; 1st part consists of 1st sim of line_pattern, len = 1
 ; 2nd - 2nd sim, len = CX - 2
 ; 3rd - 3rd sim, len = 1
-; with length = CX
-; Entry: AX, BX, CX
+; Entry: AX, BX, CX, DX
 ; Exit: None
 ; Destr: AX, BX, CX, DX, ES
 ; WARNING: inf loop expected if length < 0
 ; WARNING: len of string: max(CX, 3)
 ;------------------------------------------
 draw_pat_line   proc
-                mov dx, VIDEOSEG
-                mov es, dx
-
                 imul ax, 160
                 imul bx, 2
                 add bx, ax
 
+                mov ax, VIDEOSEG
+                mov es, ax
 
-                mov al, byte ptr offset line_pattern
+                push si
+                mov si, dx
+
+                mov al, byte ptr [si]
+                inc si
                 mov byte ptr es:[bx], al
                 add bx, 2
                 sub cx, 2
 @@while:                                           ; while (CX != 0):
 
-                mov al, byte ptr offset (line_pattern + 1)
+
+                mov al, byte ptr [si]
                 mov byte ptr es:[bx], al
                 ;mov byte ptr es:[bx+1], 11101110b
                 add bx, 2
                 LOOP @@while
 
-                mov al, byte ptr offset (line_pattern + 2)
+                inc si
+                mov al, byte ptr [si]
                 mov byte ptr es:[bx], al
 
+                pop si
                 ret
                 endp
 ;------------------------------------------
@@ -149,7 +156,7 @@ draw_pat_line   proc
 ;##########################################
 ;               draw_rect
 ;------------------------------------------
-
+line_pattern db '+-+$'
 ;------------------------------------------
 ; draws a rectangle at coords (AX, BX)
 ;   with width = CX, height = DX
@@ -168,7 +175,7 @@ draw_rect       proc
                 push cx
                 push dx
                 push es
-                ;call draw_line
+                mov dx, offset line_pattern
                 call draw_pat_line
                 pop es
                 pop dx
