@@ -8,9 +8,9 @@ VIDEOSEG equ 0b800h
 start:
         ;call print_msg
         ;call show_tablet
-        mov ax, 0
-        mov bx, 0
-        mov cx, 20
+        mov ax, 5
+        mov bx, 5
+        mov cx, 40
         mov dx, 20
         call draw_rect
         mov ax, 4c00h
@@ -96,6 +96,57 @@ draw_line       proc
 
 
 ;##########################################
+;               draw_pat_line
+;------------------------------------------
+line_pattern db '+-+$'
+;------------------------------------------
+; draws a line of 3 parts at coords (AX, BX)
+; 1st part consists of 1st sim of line_pattern, len = 1
+; 2nd - 2nd sim, len = CX - 2
+; 3rd - 3rd sim, len = 1
+; with length = CX
+; Entry: AX, BX, CX
+; Exit: None
+; Destr: AX, BX, CX, DX, ES
+; WARNING: inf loop expected if length < 0
+; WARNING: len of string: max(CX, 3)
+;------------------------------------------
+draw_pat_line   proc
+                mov dx, VIDEOSEG
+                mov es, dx
+
+                imul ax, 160
+                imul bx, 2
+                add bx, ax
+
+
+                mov al, byte ptr offset line_pattern
+                mov byte ptr es:[bx], al
+                add bx, 2
+                sub cx, 2
+@@while:                                           ; while (CX != 0):
+
+                mov al, byte ptr offset (line_pattern + 1)
+                mov byte ptr es:[bx], al
+                ;mov byte ptr es:[bx+1], 11101110b
+                add bx, 2
+                LOOP @@while
+
+                mov al, byte ptr offset (line_pattern + 2)
+                mov byte ptr es:[bx], al
+
+                ret
+                endp
+;------------------------------------------
+;##########################################
+
+
+
+
+
+
+
+;##########################################
 ;               draw_rect
 ;------------------------------------------
 
@@ -117,7 +168,8 @@ draw_rect       proc
                 push cx
                 push dx
                 push es
-                call draw_line
+                ;call draw_line
+                call draw_pat_line
                 pop es
                 pop dx
                 pop cx

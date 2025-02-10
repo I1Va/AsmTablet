@@ -1,4 +1,4 @@
-Turbo Assembler	 Version 4.1	    02/09/25 13:09:15	    Page 1
+Turbo Assembler	 Version 4.1	    02/10/25 18:53:37	    Page 1
 tablet.asm
 
 
@@ -13,11 +13,11 @@ tablet.asm
       8	0100			     start:
       9					     ;call print_msg
      10					     ;call show_tablet
-     11	0100  B8 0000			     mov ax, 0
-     12	0103  BB 0000			     mov bx, 0
-     13	0106  B9 0032			     mov cx, 50
-     14	0109  BA 0032			     mov dx, 50
-     15	010C  E8 0047			     call draw_rect
+     11	0100  B8 0005			     mov ax, 5
+     12	0103  BB 0005			     mov bx, 5
+     13	0106  B9 0028			     mov cx, 40
+     14	0109  BA 0014			     mov dx, 20
+     15	010C  E8 0077			     call draw_rect
      16	010F  B8 4C00			     mov ax, 4c00h
      17	0112  CD 21			     int 21h
      18
@@ -60,7 +60,7 @@ tablet.asm
      55	012A  8E C0				     mov es, ax
      56	012C  BB 0370				     mov bx, 5*80*2 + 40*2
      57	012F  26: C6 07	41			     mov byte ptr es:[bx], 'A'
-Turbo Assembler	 Version 4.1	    02/09/25 13:09:15	    Page 2
+Turbo Assembler	 Version 4.1	    02/10/25 18:53:37	    Page 2
 tablet.asm
 
 
@@ -107,54 +107,111 @@ tablet.asm
      97
      98
      99				     ;##########################################
-    100				     ;		     draw_rect
+    100				     ;		     draw_pat_line
     101				     ;------------------------------------------
-    102
+    102	0156  2B 2D 2B 24	     line_pattern db '+-+$'
     103				     ;------------------------------------------
-    104				     ; draws a rectangle at coords (AX,	BX)
-    105				     ;	 with width = CX, height = DX
-    106				     ; Entry: AX, BX, CX, DX
-    107				     ; Exit: None
-    108				     ; Destr: AX, BX, CX, DX, ES
-    109				     ; WARNING:	inf loop expected
-    110				     ;	 if height/width < 0
-    111				     ;------------------------------------------
-    112	0156			     draw_rect	     proc
-    113
-    114
-Turbo Assembler	 Version 4.1	    02/09/25 13:09:15	    Page 3
+    104				     ; draws a line of 3 parts at coords (AX, BX)
+    105				     ; 1st part	consists of 1st	sim of line_pattern, len = 1
+    106				     ; 2nd - 2nd sim, len = CX - 2
+    107				     ; 3rd - 3rd sim, len = 1
+    108				     ; with length = CX
+    109				     ; Entry: AX, BX, CX
+    110				     ; Exit: None
+    111				     ; Destr: AX, BX, CX, DX, ES
+    112				     ; WARNING:	inf loop expected if length < 0
+    113				     ; WARNING:	len of string: max(CX, 3)
+    114				     ;------------------------------------------
+Turbo Assembler	 Version 4.1	    02/10/25 18:53:37	    Page 3
 tablet.asm
 
 
 
-    115	0156			     @@while:						; while	(CX != 0):
-    116	0156  50				     push ax
-    117	0157  53				     push bx
-    118	0158  51				     push cx
-    119	0159  52				     push dx
-    120	015A  06				     push es
-    121	015B  E8 FFDB				     call draw_line
-    122	015E  07				     pop es
-    123	015F  5A				     pop dx
-    124	0160  59				     pop cx
-    125	0161  5B				     pop bx
-    126	0162  58				     pop ax
-    127
-    128
-    129	0163  40				     inc ax
-    130	0164  83 EA 01				     sub dx, 1
-    131	0167  83 FA 00				     cmp dx, 0
-    132	016A  7F EA				     jg	@@while
-    133
-    134
-    135	016C  C3				     ret
-    136	016D					     endp
-    137				     ;------------------------------------------
-    138				     ;##########################################
-    139
-    140
-    141				     end start
-Turbo Assembler	 Version 4.1	    02/09/25 13:09:15	    Page 4
+    115	015A			     draw_pat_line   proc
+    116	015A  BA B800				     mov dx, VIDEOSEG
+    117	015D  8E C2				     mov es, dx
+    118
+    119	015F  69 C0 00A0			     imul ax, 160
+    120	0163  6B DB 02				     imul bx, 2
+    121	0166  03 D8				     add bx, ax
+    122
+    123
+    124	0168  A0 0156r				     mov al, byte ptr offset line_pattern
+    125	016B  26: 88 07				     mov byte ptr es:[bx], al
+    126	016E  83 C3 02				     add bx, 2
+    127	0171  83 E9 02				     sub cx, 2
+    128	0174			     @@while:						; while	(CX != 0):
+    129
+    130	0174  A0 0157r				     mov al, byte ptr offset (line_pattern + 1)
+    131	0177  26: 88 07				     mov byte ptr es:[bx], al
+    132						     ;mov byte ptr es:[bx+1], 11101110b
+    133	017A  83 C3 02				     add bx, 2
+    134	017D  E2 F5				     LOOP @@while
+    135
+    136	017F  A0 0158r				     mov al, byte ptr offset (line_pattern + 2)
+    137	0182  26: 88 07				     mov byte ptr es:[bx], al
+    138
+    139	0185  C3				     ret
+    140	0186					     endp
+    141				     ;------------------------------------------
+    142				     ;##########################################
+    143
+    144
+    145
+    146
+    147
+    148
+    149
+    150				     ;##########################################
+    151				     ;		     draw_rect
+    152				     ;------------------------------------------
+    153
+    154				     ;------------------------------------------
+    155				     ; draws a rectangle at coords (AX,	BX)
+    156				     ;	 with width = CX, height = DX
+    157				     ; Entry: AX, BX, CX, DX
+    158				     ; Exit: None
+    159				     ; Destr: AX, BX, CX, DX, ES
+    160				     ; WARNING:	inf loop expected
+    161				     ;	 if height/width < 0
+    162				     ;------------------------------------------
+    163	0186			     draw_rect	     proc
+    164
+    165
+    166	0186			     @@while:						; while	(CX != 0):
+    167	0186  50				     push ax
+    168	0187  53				     push bx
+    169	0188  51				     push cx
+    170	0189  52				     push dx
+    171	018A  06				     push es
+Turbo Assembler	 Version 4.1	    02/10/25 18:53:37	    Page 4
+tablet.asm
+
+
+
+    172						     ;call draw_line
+    173	018B  E8 FFCC				     call draw_pat_line
+    174	018E  07				     pop es
+    175	018F  5A				     pop dx
+    176	0190  59				     pop cx
+    177	0191  5B				     pop bx
+    178	0192  58				     pop ax
+    179
+    180
+    181	0193  40				     inc ax
+    182	0194  83 EA 01				     sub dx, 1
+    183	0197  83 FA 00				     cmp dx, 0
+    184	019A  7F EA				     jg	@@while
+    185
+    186
+    187	019C  C3				     ret
+    188	019D					     endp
+    189				     ;------------------------------------------
+    190				     ;##########################################
+    191
+    192
+    193				     end start
+Turbo Assembler	 Version 4.1	    02/10/25 18:53:37	    Page 5
 Symbol Table
 
 
@@ -162,13 +219,14 @@ Symbol Table
 
 Symbol Name			  Type	 Value
 
-??DATE				  Text	 "02/09/25"
+??DATE				  Text	 "02/10/25"
 ??FILENAME			  Text	 "tablet  "
-??TIME				  Text	 "13:09:15"
+??TIME				  Text	 "18:53:37"
 ??VERSION			  Number 040A
 @32BIT				  Text	 0
 @@WHILE				  Near	 DGROUP:0147
-@@WHILE				  Near	 DGROUP:0156
+@@WHILE				  Near	 DGROUP:0174
+@@WHILE				  Near	 DGROUP:0186
 @CODE				  Text	 DGROUP
 @CODESIZE			  Text	 0
 @CPU				  Text	 0103H
@@ -181,7 +239,9 @@ Symbol Name			  Type	 Value
 @STACK				  Text	 DGROUP
 @WORDSIZE			  Text	 2
 DRAW_LINE			  Near	 DGROUP:0139
-DRAW_RECT			  Near	 DGROUP:0156
+DRAW_PAT_LINE			  Near	 DGROUP:015A
+DRAW_RECT			  Near	 DGROUP:0186
+LINE_PATTERN			  Byte	 DGROUP:0156
 MSG_STRING			  Byte	 DGROUP:0114
 PRINT_MSG			  Near	 DGROUP:011F
 SHOW_TABLET			  Near	 DGROUP:0127
@@ -192,5 +252,5 @@ Groups & Segments		  Bit Size Align  Combine Class
 
 DGROUP				  Group
   _DATA				  16  0000 Word	  Public  DATA
-  _TEXT				  16  016D Word	  Public  CODE
+  _TEXT				  16  019D Word	  Public  CODE
 
