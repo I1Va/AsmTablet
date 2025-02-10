@@ -9,10 +9,10 @@ start:
 
         ;call print_msg
         ;call show_tablet
-        mov ax, 5
-        mov bx, 5
-        mov cx, 40
-        mov dx, 20
+        mov ax, 5         ; X cord
+        mov bx, 30        ; Y cord
+        mov cx, 40        ; width
+        mov dx, 10        ; height
         call draw_rect
         mov ax, 4c00h
         int 21h
@@ -108,11 +108,17 @@ draw_line       proc
 ; 3rd - 3rd sim, len = 1
 ; Entry: AX, BX, CX, DX
 ; Exit: None
-; Destr: AX, BX, CX, DX, ES
+; Destr: None
 ; WARNING: inf loop expected if length < 0
 ; WARNING: len of string: max(CX, 3)
 ;------------------------------------------
 draw_pat_line   proc
+                push ax ; |
+                push bx ; |
+                push cx ; | reg save
+                push dx ; |
+                push es ; |
+
                 imul ax, 160
                 imul bx, 2
                 add bx, ax
@@ -142,6 +148,14 @@ draw_pat_line   proc
                 mov byte ptr es:[bx], al
 
                 pop si
+
+
+                pop es ; |
+                pop dx ; |
+                pop cx ; | reg restore
+                pop bx ; |
+                pop ax ; |
+
                 ret
                 endp
 ;------------------------------------------
@@ -156,7 +170,7 @@ draw_pat_line   proc
 ;##########################################
 ;               draw_rect
 ;------------------------------------------
-line_pattern db '+-+$'
+line_pattern db '+=+|.|+=+$'
 ;------------------------------------------
 ; draws a rectangle at coords (AX, BX)
 ;   with width = CX, height = DX
@@ -169,31 +183,41 @@ line_pattern db '+-+$'
 draw_rect       proc
 
 
-@@while:                                           ; while (CX != 0):
-                push ax
-                push bx
-                push cx
+
+
+
+
+
                 push dx
-                push es
                 mov dx, offset line_pattern
                 call draw_pat_line
-                pop es
                 pop dx
-                pop cx
-                pop bx
-                pop ax
+                inc ax
+                sub dx, 2
 
+@@while:                                           ; while (CX != 0):
 
+                push dx
+                mov dx, offset line_pattern
+                add dx, 3
+                call draw_pat_line
+                pop dx
                 inc ax
                 sub dx, 1
                 cmp dx, 0
                 jg @@while
 
+                push dx
+                mov dx, offset line_pattern
+                add dx, 6
+                call draw_pat_line
+                pop dx
+                inc ax
+                sub dx, 2
 
                 ret
                 endp
 ;------------------------------------------
 ;##########################################
-
 
 end start
