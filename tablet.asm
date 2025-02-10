@@ -9,15 +9,34 @@ start:
 
         ;call print_msg
         ;call show_tablet
-        mov ax, 5         ; X cord
-        mov bx, 30        ; Y cord
-        mov cx, 40        ; width
-        mov dx, 10        ; height
+
+        mov ax, 20d         ; X cord
+        mov bx, 20d        ; Y cord
+        mov cx, 40d        ; width
+        mov dx, 10d        ; height
+
+        push ax
+        push bx
         call draw_rect
+        pop bx
+        pop ax
+
+        ;=============================================
+        ; There is should be calculating text position
+        add ax, 1
+        add bx, 1
+        ;=============================================
+
+
+
+        mov cx, 30d
+        mov dx, offset tablet_string
+        call draw_string
         mov ax, 4c00h
         int 21h
 
 
+tablet_string db 'Sweet February with Valentine!$'
 
 ;##########################################
 ;               print_msg
@@ -214,6 +233,55 @@ draw_rect       proc
                 pop dx
                 inc ax
                 sub dx, 2
+
+                ret
+                endp
+;------------------------------------------
+;##########################################
+
+;##########################################
+;               draw_string
+;------------------------------------------
+;------------------------------------------
+; draws string at coords (AX, BX)
+; string length = CX
+; string adress = DX
+; Entry: AX, BX, CX, DX
+; Exit: None
+; Destr: None
+; WARNING: inf loop expected if length < 0
+;------------------------------------------
+draw_string     proc
+                push ax           ;|
+                push bx           ;|
+                push cx           ;| reg save
+                push dx           ;|
+                push es           ;|
+                push si           ;|
+
+                imul ax, 160      ;|
+                imul bx, 2        ;|
+                add bx, ax        ;| es = VIDEOSEG addr with
+                mov ax, VIDEOSEG  ;| coords (AX, BX)
+                mov es, ax        ;|
+
+                mov si, dx        ; si = string addr
+;------------------------------------------
+@@while:        ; while (CX != 0):
+
+                mov al, byte ptr [si]
+                mov byte ptr es:[bx], al
+                ;mov byte ptr es:[bx+1], 11101110b
+                add bx, 2
+                inc si
+                LOOP @@while
+;------------------------------------------
+                pop si ; |
+                pop es ; |
+                pop dx ; |
+                pop cx ; | reg restore
+                pop bx ; |
+                pop ax ; |
 
                 ret
                 endp
