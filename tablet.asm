@@ -1,32 +1,38 @@
 .model tiny
 .186
 locals @@
+
+.data
+
+VIDEOSEG        equ 0b800h
+X_CORD          equ 10d
+Y_CORD          equ 10d
+RECT_HEIGHT     equ 10d
+RECT_WIDTH      equ 50d
+
+tablet_string db 'Sweet February with Valentine!$'
+rect_style db '+=+|.|+=+$'
+
 .code
 org 100h
-VIDEOSEG equ 0b800h
 
 start:
-        mov ax, 5d                                      ; X cord
-        mov bx, 5d                                      ; Y cord
-        mov cx, 40d                                     ; width
-        mov dx, 10d                                     ; height
 
-        push ax                                         ;|
-        push bx                                         ;|
-        call draw_rect                                  ;| call draw_rect
-        pop bx                                          ;|
-        pop ax                                          ;|
+        mov ah, 01101110b                               ; rect color attr
+        mov si, offset rect_style                       ; rect style pattern addr
+        mov bx, RECT_HEIGHT                             ; bx = RECT_HEIGHT
+        mov cx, RECT_WIDTH                              ; cx = RECT_WIDTH
+        mov dx, VIDEOSEG                                ;|
+        mov es, dx                                      ;| es = VIDEOSEG
+        mov di, (X_CORD * 80d + Y_CORD) * 2d            ; DI = addr of (X_CORD, Y_CORD)
+        call draw_rect
 
-        ;=============================================
-        ; There is should be calculating text position
-        add ax, 1
-        add bx, 1
-        ;=============================================
+        mov ah, 11001110b                               ; label color attr
+        mov si, offset tablet_string                    ; label memory addr
+        mov cx, 30d                                     ; cx = label len
+        mov di, (11dx * 80d + 11d) * 2d                 ; DI = addr of label addr on screen
+        call draw_string
 
-
-        mov cx, 30d                                     ;|
-        mov dx, offset tablet_string                    ;| call draw_string
-        call draw_string                                ;|
 
         mov ax, 4c00h                                   ;|
         int 21h                                         ;| exit(0)
@@ -58,59 +64,29 @@ print_msg       proc
 ;               draw_pat_line
 ;------------------------------------------
 ;------------------------------------------
-; draws a line of 3 parts at coords (AX, BX)
-; line length = CX
-; line pattern adress = DX
-; 1st part consists of 1st sim of line_pattern, len = 1
-; 2nd - 2nd sim, len = CX - 2
-; 3rd - 3rd sim, len = 1
-; Entry: AX, BX, CX, DX
-; Exit: None
-; Destr: None
-; WARNING: inf loop expected if length < 0
-; WARNING: len of string: max(CX, 3)
+; Descr:
+;       Draws a line by pattern
+; Entry:
+;       AH      ; color attr
+;       DS:SI   ; line pattern addr
+;       CX      ; line length
+;       ES:DI   ; line beginng addr
+; Desroy:
+;       AL, BX, CX, SI, DI
 ;------------------------------------------
 draw_pat_line   proc
-                push ax                                 ;|
-                push bx                                 ;|
-                push cx                                 ;| reg save
-                push dx                                 ;|
-                push es                                 ;|
+                cld                                     ; DF = 0 (++)
 
-                imul ax, 160                            ;|
-                imul bx, 2                              ;| Calculating video segmemt bias
-                add bx, ax                              ;|
+                lodsb                                   ; al = ds:[si++]
+                stosw                                   ; es:[di++] = ax
+                sub cx, 2d                              ; cx -= 2 for first, last char
 
-                mov ax, VIDEOSEG                        ;| setting segment register
-                mov es, ax                              ;| es = VIDEOSEG
+                lodsb                                   ; al = ds:[si++]
 
-                push si                                 ; saving si
-                mov si, dx                              ; si = di = patter_line adress
+                rep stosw                               ; while (CX != 0) {es:[di+=2] = ax}
 
-                mov al, byte ptr [si]                   ;| al = MEM[si++]
-                inc si                                  ;|
-                mov byte ptr es:[bx], al                ; es:[bx] = al
-
-                add bx, 2                               ; next char
-                sub cx, 2                               ; remaining len -= 2
-
-
-@@while:;-----------------------------------------------; while (CX != 0) {
-                mov al, byte ptr [si]                   ;       al = MEM[si]
-                mov byte ptr es:[bx], al                ;       es:[bx] = al
-                add bx, 2                               ;       next char
-LOOP @@while;-------------------------------------------; }
-
-                inc si                                  ;| al = MEM[si++]
-                mov al, byte ptr [si]                   ;|
-                mov byte ptr es:[bx], al                ; es:[bx] = al
-
-                pop si                                  ;|
-                pop es                                  ;|
-                pop dx                                  ;|
-                pop cx                                  ;| reg restore
-                pop bx                                  ;|
-                pop ax                                  ;|
+                lodsb                                   ; al = ds:[si++]
+                stosw                                   ; es:[di+=2] = al
 
                 ret
                 endp
@@ -127,48 +103,60 @@ LOOP @@while;-------------------------------------------; }
 ;               draw_rect
 ;------------------------------------------
 ;------------------------------------------
-; draws a rectangle at coords (AX, BX)
-;   with width = CX, height = DX
-; Entry: AX, BX, CX, DX
-; Exit: None
-; Destr: AX, BX, CX, DX, ES
-; WARNING: inf loop expected
-;   if height/width < 0
+; Descr:
+;       Draws rectangle by pattern
+; Entry:
+;       AH      - color attr
+;       DS:SI   - addr of pattern
+;       BX      - rectangle height
+;       CX      - rectangle width
+;
+;       ES:DI   - rectangle upper left corner
 ;------------------------------------------
 draw_rect       proc
+                push bx                                 ;|
+                push cx                                 ;|reg saving
+                push di                                 ;|
 
-                push dx                                 ; saving prev dx
-                mov dx, offset line_pattern             ; dx = &line_pattern
                 call draw_pat_line                      ; call draw_pat_line
 
-                pop dx                                  ; restore dx
-                inc ax                                  ; next line (X++)
-                sub dx, 2                               ; remaining height -= 2
+                pop di                                  ;|
+                pop cx                                  ;|reg restoring
+                pop bx                                  ;|
 
-@@while:;-----------------------------------------------; while (DX > 0) {
+                add di, 160                             ;|next line
+                sub bx, 2                               ;|
 
-                push dx                                 ;        saving prev dx
-                mov dx, offset line_pattern             ;|       dx = &line_pattern + 3
-                add dx, 3                               ;|
-                call draw_pat_line                      ;        call draw_pat_line
+@@while:;-----------------------------------------------; while (BX > 0) {
+                push bx                                 ;|
+                push cx                                 ;|      reg saving
+                push di                                 ;|
 
-                pop dx                                  ;        restore dx
-                inc ax                                  ;        next line (X++)
-                sub dx, 1                               ;        remaining height--
+                push si                                 ;       save pattern middle triad addr
 
-                cmp dx, 0                               ;        if dx > 0 -> jump @@while
+                call draw_pat_line                      ;       call draw_pat_line
+
+                pop si                                  ;       restore patterm middle triad addr
+
+                pop di                                  ;|
+                pop cx                                  ;|      reg restoring
+                pop bx                                  ;|
+
+                add di, 160                             ;|      next line
+                dec bx                                  ;|
+                cmp bx, 0                               ;       if dx > 0 -> jump @@while
 jg @@while;---------------------------------------------; while end }
 
-                push dx                                 ; saving dx
-                mov dx, offset line_pattern             ;|dx = &line_pattern + 6
-                add dx, 6                               ;|
+                add  si, 3d
+                push bx                                 ;|
+                push cx                                 ;|reg saving
+                push di                                 ;|
 
-                call draw_pat_line                      ;| call draw_pat_line
+                call draw_pat_line                      ; call draw_pat_line
 
-                pop dx                                  ; restore dx
-
-                inc ax                                  ; next line (X++)
-                sub dx, 2                               ; remaining height--
+                pop di                                  ;|
+                pop cx                                  ;|reg restoring
+                pop bx                                  ;|
 
                 ret
                 endp
@@ -179,52 +167,28 @@ jg @@while;---------------------------------------------; while end }
 ;               draw_string
 ;------------------------------------------
 ;------------------------------------------
-; draws string at coords (AX, BX)
-; string length = CX
-; string adress = DX
-; Entry: AX, BX, CX, DX
-; Exit: None
-; Destr: None
-; WARNING: inf loop expected if length < 0
+; Descr:
+;       Draws a string by addr ES:DI
+; Entry:
+;       AH      ; color attr
+;       DS:SI   ; string memory addr
+;       CX      ; string length
+;       ES:DI   ; line beginning addr
+; Desroy:
+;       AL, BX, CX, SI, DI
 ;------------------------------------------
 draw_string     proc
-                push ax           ;|
-                push bx           ;|
-                push cx           ;| reg save
-                push dx           ;|
-                push es           ;|
-                push si           ;|
-
-                imul ax, 160      ;|
-                imul bx, 2        ;|
-                add bx, ax        ;| es = VIDEOSEG addr with
-                mov ax, VIDEOSEG  ;| coords (AX, BX)
-                mov es, ax        ;|
-
-                mov si, dx        ; si = string addr
-
+                cld                                     ; DF = 0 (++)
 @@while:;-----------------------------------------------; while (CX != 0) {
-                mov al, byte ptr [si]                           ; al = MEM[si]
-                mov byte ptr es:[bx], al                        ; es:[bx] = al
-
-                add bx, 2                                       ;
-                inc si
-LOOP @@while;-------------------------------------------; }
-                pop si ; |
-                pop es ; |
-                pop dx ; |
-                pop cx ; | reg restore
-                pop bx ; |
-                pop ax ; |
+                lodsb                                   ;       al = ds:[si++]
+                stosw                                   ;       es:[di++] = ax
+                loop @@while
+;-------------------------------------------------------; while end }
 
                 ret
                 endp
 ;------------------------------------------
 ;##########################################
-
-.data
-tablet_string db 'Sweet February with Valentine!$'
-line_pattern db '+=+|.|+=+$'
 
 end start
 
