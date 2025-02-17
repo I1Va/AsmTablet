@@ -1,18 +1,22 @@
 .model tiny
 .186
 locals @@
+
 .code
 org 100h
 
-line_pattern db '+-+$'
+start:
+L4:
+    mov ax, 40
+	sub	ax, 31
+	cmp	ax, 19
+	jbe	L4; 19 <= ax <= 31
 
-mov dx, line_pattern
+    mov ax, 4c00h                                   ;|
+    int 21h                                         ;| exit(0)
 
 
-mov ax, VIDEOSEG
-mov es, ax
 
-mov al, byte ptr offset dx
-mov byte ptr es:[bx], al
-add bx, 2
-sub cx, 2
+
+end start
+

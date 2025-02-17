@@ -6,8 +6,13 @@ _get:
 LFB12:
 	.cfi_startproc
 	movl	4(%esp), %eax
-	leal	(%eax,%eax,4), %edx
-	leal	(%edx,%edx), %eax
+	subl	$31, %eax
+	cmpl	$19, %eax
+	jbe	L4
+	movl	$0, %eax
+	ret
+L4:
+	movl	$1, %eax
 	ret
 	.cfi_endproc
 LFE12:

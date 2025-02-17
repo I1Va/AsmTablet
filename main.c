@@ -1,5 +1,10 @@
 #include <stdlib.h>
 
 int get(int a) {
-    return a * 10;
+    if ((a > 30) && (a < 51)) {
+        return 1;
+    } else {
+        return 0;
+    }
 }
+
