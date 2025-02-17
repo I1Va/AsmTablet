@@ -1,4 +1,4 @@
-Turbo Assembler	 Version 4.1	    02/17/25 21:12:47	    Page 1
+Turbo Assembler	 Version 4.1	    02/17/25 23:41:57	    Page 1
 tablet.asm
 
 
@@ -60,7 +60,7 @@ tablet.asm
      55						     int     21h			      ;|exit(1)
      56				     endm
      57
-Turbo Assembler	 Version 4.1	    02/17/25 21:12:47	    Page 2
+Turbo Assembler	 Version 4.1	    02/17/25 23:41:57	    Page 2
 tablet.asm
 
 
@@ -80,470 +80,534 @@ tablet.asm
      70	      =0030		     DEC_DIGITS_SHIFT	     equ 30h
      71	      =0037		     UPPERCASE_HEX_SHIFT     equ 37h
      72	      =0057		     LOWERCASE_HEX_SHIFT     equ 57h
-     73
-     74	      =B800		     VIDEOSEG		     equ 0b800h
-     75	      =0005		     X_CORD		     equ 5d
-     76	      =0005		     Y_CORD		     equ 5d
-     77
-     78	0000  0A		     DEC_NUM_BASE	     db	10d
-     79	      =0010		     HEX_NUM_BASE	     equ 16d
+     73	0000  50		     CONSOLE_WIDTH	     db	80d
+     74	0001  19		     CONSOLE_HEIGH	     db	25d
+     75	      =0002		     CONSOLE_SCROLLING_CNT   equ 2d
+     76
+     77	      =B800		     VIDEOSEG		     equ 0b800h
+     78	      =0005		     X_CORD		     equ 5d
+     79	      =0005		     Y_CORD		     equ 5d
      80
-     81	0001  53 77 65 65 74 20	46+  tablet_string db 'Sweet February with Valentine!$'
-     82	      65 62 72 75 61 72	79+
-     83	      20 77 69 74 68 20	56+
-     84	      61 6C 65 6E 74 69	6E+
-     85	      65 21 24
-     86	0020  61 74 6F 69 31 30	3A+  atoi10_error_msg db 'atoi10: string contains non-decimal characters$'
-     87	      20 73 74 72 69 6E	67+
-     88	      20 63 6F 6E 74 61	69+
-     89	      6E 73 20 6E 6F 6E	2D+
-     90	      64 65 63 69 6D 61	6C+
-     91	      20 63 68 61 72 61	63+
-     92	      74 65 72 73 24
-     93	004F  61 74 6F 69 31 36	3A+  atoi16_error_msg db 'atoi16: string contains non-hex characters$'
-     94	      20 73 74 72 69 6E	67+
-     95	      20 63 6F 6E 74 61	69+
-     96	      6E 73 20 6E 6F 6E	2D+
-     97	      68 65 78 20 63 68	61+
-     98	      72 61 63 74 65 72	73+
-     99	      24
-    100
-    101	007A  2B 3D 2B 7C 2E 7C	2B+  RS1 db "+=+|.|+=+$"
-    102	      3D 2B 24
-    103	0084  30 2D 30 49 2A 49	30+  RS2 db "0-0I*I0-0$"
-    104	      2D 30 24
-    105
-    106	008E  007Ar 0084r	     STYLES_ARR	dw offset RS1, offset RS2
-    107
-    108	0092			     .code
-    109				     org 100h
+     81	0002  0A		     DEC_NUM_BASE	     db	10d
+     82	      =0010		     HEX_NUM_BASE	     equ 16d
+     83
+     84	0003  53 77 65 65 74 20	46+  tablet_string db 'Sweet February with Valentine!$'
+     85	      65 62 72 75 61 72	79+
+     86	      20 77 69 74 68 20	56+
+     87	      61 6C 65 6E 74 69	6E+
+     88	      65 21 24
+     89	0022  61 74 6F 69 31 30	3A+  atoi10_error_msg db 'atoi10: string contains non-decimal characters$'
+     90	      20 73 74 72 69 6E	67+
+     91	      20 63 6F 6E 74 61	69+
+     92	      6E 73 20 6E 6F 6E	2D+
+     93	      64 65 63 69 6D 61	6C+
+     94	      20 63 68 61 72 61	63+
+     95	      74 65 72 73 24
+     96	0051  61 74 6F 69 31 36	3A+  atoi16_error_msg db 'atoi16: string contains non-hex characters$'
+     97	      20 73 74 72 69 6E	67+
+     98	      20 63 6F 6E 74 61	69+
+     99	      6E 73 20 6E 6F 6E	2D+
+    100	      68 65 78 20 63 68	61+
+    101	      72 61 63 74 65 72	73+
+    102	      24
+    103
+    104	007C  2B 3D 2B 7C 2E 7C	2B+  RS1 db "+=+|.|+=+$"
+    105	      3D 2B 24
+    106	0086  30 2D 30 49 2A 49	30+  RS2 db "0-0I*I0-0$"
+    107	      2D 30 24
+    108
+    109	0090  007Cr 0086r	     STYLES_ARR	dw offset RS1, offset RS2
     110
-    111				     ;------------------------------------------
-    112				     ; Args:
-    113				     ;	      rect width
-    114				     ;	      rect height
-Turbo Assembler	 Version 4.1	    02/17/25 21:12:47	    Page 3
+    111	0094			     .code
+    112				     org 100h
+    113
+    114				     ;------------------------------------------
+Turbo Assembler	 Version 4.1	    02/17/25 23:41:57	    Page 3
 tablet.asm
 
 
 
-    115				     ;	      color attr
-    116				     ;	      style_mode
-    117				     ;		      if (style_mode ==	0) :
-    118				     ;			      style string
-    119				     ;	      message
-    120				     ;------------------------------------------
-    121
-    122
-    123	0100			     start:
-    124	0100  BE 0082				     mov     si, ARGS_ADDR		     ; si = 1st	arg addr
-    125	0103  E8 0089				     call    atoi_10			     ; bx = atoi_10(1st	arg)
-    126	0106  8B CB				     mov     cx, bx			     ; cx(rect_width) =	bx(atoi10 ret val)
-    127
-    128	0108  E8 0084				     call    atoi_10			     ; bx(rect_height) = atoi_10(2nd arg)
-    129
-    130	010B  53				     push    bx				     ; save bx(rect_height)
-    131	010C  E8 00AF				     call    atoi_16			     ;|
+    115				     ; Args:
+    116				     ;	      rect width
+    117				     ;	      rect height
+    118				     ;	      color attr
+    119				     ;	      style_mode
+    120				     ;		      if (style_mode ==	0) :
+    121				     ;			      style string
+    122				     ;	      message
+    123				     ;------------------------------------------
+    124
+    125
+    126	0100			     start:
+    127	0100  BE 0082				     mov     si, ARGS_ADDR		     ; si = 1st	arg addr
+    128	0103  E8 00AD				     call    atoi_10			     ; bx = atoi_10(1st	arg)
+    129	0106  8B CB				     mov     cx, bx			     ; cx(rect_width) =	bx(atoi10 ret val)
+    130
+    131	0108  E8 00A8				     call    atoi_10			     ; bx(rect_height) = atoi_10(2nd arg)
     132
-    133
-    134	010F  8A E3				     mov     ah, bl			     ;|	ah(color attr) = atoi(3rd arg)
-    135						     ;mov     ah, 0ceh
+    133	010B  53				     push    bx				     ; save bx(rect_height)
+    134	010C  E8 00D3				     call    atoi_16			     ;|
+    135
     136
-    137
-    138	0111  5B				     pop     bx				     ; restore bx(rect_height)
+    137	010F  8A E3				     mov     ah, bl			     ;|	ah(color attr) = atoi(3rd arg)
+    138
     139
-    140	0112  53				     push    bx				     ; save bx(rect_height)
-    141	0113  50				     push    ax				     ; save ax(rect color attr)
-    142
-    143	0114  E8 0078				     call    atoi_10			     ; bx = style_mode(4rd arg)
-    144	0117  83 FB 00				     cmp     bx, 0			     ;|if (bx == 0):
-    145	011A  74 0B				     je	     USER_STYLE			     ;|	     (5th arg =	custom user style)
-    146	011C  4B				     dec     bx				     ;|else:
-    147	011D  03 DB				     add     bx, bx			     ;|	     di	- addr of style	with index =+
-    148				     (bx - 1)
-    149	011F  8B FB				     mov     di, bx			     ;|	     (di = (bx - 1) * 2)
-    150
-    151
-    152	0121  8B EE				     mov     bp, si			     ;|	save si	(addr of current arg).
-    153											     ;|	I use mov, because push	will cause  +
-    154				     confusion after USER_STYLE:
-    155
-    156	0123  8B B5 008Er			     mov     si, STYLES_ARR[di]		     ; rect style pattern addr
+    140	0111  5B				     pop     bx				     ; restore bx(rect_height)
+    141
+    142	0112  53				     push    bx				     ; save bx(rect_height)
+    143	0113  50				     push    ax				     ; save ax(rect color attr)
+    144
+    145	0114  E8 009C				     call    atoi_10			     ; bx = style_mode(4rd arg)
+    146	0117  83 FB 00				     cmp     bx, 0			     ;|if (bx == 0):
+    147	011A  74 0B				     je	     USER_STYLE			     ;|	     (5th arg =	custom user style)
+    148	011C  4B				     dec     bx				     ;|else:
+    149	011D  03 DB				     add     bx, bx			     ;|	     di	- addr of style	with index =+
+    150				     (bx - 1)
+    151	011F  8B FB				     mov     di, bx			     ;|	     (di = (bx - 1) * 2)
+    152
+    153
+    154	0121  8B EE				     mov     bp, si			     ;|	save si	(addr of current arg).
+    155											     ;|	I use mov, because push	will cause  +
+    156				     confusion after USER_STYLE:
     157
-    158	0127			     USER_STYLE:
-    159	0127  BA B800				     mov     dx, VIDEOSEG		     ;|
-    160	012A  8E C2				     mov     es, dx			     ;|es = VIDEOSEG
-    161	012C  BF 032A				     mov di, (X_CORD * 80d + Y_CORD) * 2d    ; DI = addr of (X_CORD, Y_CORD)
-    162
-    163	012F  58				     pop     ax				     ; restore ax(color	attr)
-    164	0130  5B				     pop     bx				     ; restore bx(rect_height)
-    165
-    166	0131  E8 001B				     call    draw_rect			     ;|draw_rect:
-    167											     ;|	     Entry:   AH, DS:SI, BX, CX,    +
-    168				     ES:DI
-    169											     ;|	     Destroy: AX, SI
-    170
-    171	0134  8B F5				     mov     si, bp			     ; restore si(addr of current arg)
-Turbo Assembler	 Version 4.1	    02/17/25 21:12:47	    Page 4
+    158	0123  8B B5 0090r			     mov     si, STYLES_ARR[di]		     ; rect style pattern addr
+    159
+    160	0127			     USER_STYLE:
+    161	0127  BA B800				     mov     dx, VIDEOSEG		     ;|
+    162	012A  8E C2				     mov     es, dx			     ;|es = VIDEOSEG
+    163
+    164	012C  58				     pop     ax				     ; restore ax(color	attr)
+    165	012D  5B				     pop     bx				     ; restore bx(rect_height)
+    166
+    167	012E  E8 0053				     call    align_cord_cmp		     ;|align_cord_cmp:
+    168											     ;|	     Entry: CONSOLE_HEIGH,	    +
+    169				     CONSOLE_WIDTH, BX,	CX
+    170											     ;|	     Return: DI
+    171											     ;|	     Destr: DI
+Turbo Assembler	 Version 4.1	    02/17/25 23:41:57	    Page 4
 tablet.asm
 
 
 
-    172	0136  B4 CE				     mov     ah, 11001110b		     ; label color attr
-    173	0138  BF 06F6				     mov     di, (11d *	80d + 11d) * 2d	     ; DI = addr of label addr on screen
+    172
+    173	0131  57				     push    di				     ; save rect corner	addr
     174
-    175	013B  E8 0043				     call    draw_string		     ;|draw_string
-    176											     ;|	     Entry:    AH, DS:SI, ES:DI
-    177											     ;|	     Destroy:  AL, BX, CX, SI, DI
-    178
-    179	013E  B8 4C00				     mov ax, 4c00h			     ;|
-    180	0141  CD 21				     int 21h				     ;|	exit(0)
-    181
-    182
-    183
-    184				     ;##########################################
-    185				     ;		     draw_pat_line
-    186				     ;------------------------------------------
-    187				     ;------------------------------------------
-    188				     ; Descr:
-    189				     ;	     Draws a line by pattern
-    190				     ; Entry:
-    191				     ;	     AH	     ; color attr
-    192				     ;	     DS:SI   ; line pattern addr
-    193				     ;	     CX	     ; line length
-    194				     ;	     ES:DI   ; line beginng addr
-    195				     ; Desroy:
-    196				     ;	     AL, BX, CX, SI, DI
+    175	0132  E8 001D				     call    draw_rect			     ;|draw_rect:
+    176											     ;|	     Entry:   AH, DS:SI, BX, CX,    +
+    177				     ES:DI
+    178											     ;|	     Destroy: AX, SI
+    179
+    180	0135  5F				     pop     di				     ; restore rect corner addr
+    181	0136  8B F5				     mov     si, bp			     ; restore si(addr of current arg)
+    182	0138  B4 CE				     mov     ah, 11001110b		     ; label color attr
+    183	013A  81 C7 0144			     add     di, (80 * 2 + 2) *	2	     ; DI = addr of label addr on screen
+    184
+    185	013E  E8 0064				     call    draw_string		     ;|draw_string
+    186											     ;|	     Entry:    AH, DS:SI, ES:DI
+    187											     ;|	     Destroy:  AL, BX, CX, SI, DI
+    188
+    189	0141  B8 4C00				     mov ax, 4c00h			     ;|
+    190	0144  CD 21				     int 21h				     ;|	exit(0)
+    191
+    192
+    193
+    194				     ;##########################################
+    195				     ;		     draw_pat_line
+    196				     ;------------------------------------------
     197				     ;------------------------------------------
-    198	0143			     draw_pat_line   proc
-    199	0143  FC				     cld				     ; DF = 0 (++)
-    200
-    201	0144  AC				     lodsb				     ; al = ds:[si++]
-    202	0145  AB				     stosw				     ; es:[di++] = ax
-    203	0146  83 E9 02				     sub cx, 2d				     ; cx -= 2 for first, last char
-    204
-    205	0149  AC				     lodsb				     ; al = ds:[si++]
-    206
-    207	014A  F3> AB				     rep stosw				     ; while (CX != 0) {es:[di+=2] = ax}
-    208
-    209	014C  AC				     lodsb				     ; al = ds:[si++]
-    210	014D  AB				     stosw				     ; es:[di+=2] = al
-    211
-    212	014E  C3				     ret
-    213	014F					     endp
-    214				     ;------------------------------------------
-    215				     ;##########################################
+    198				     ; Descr:
+    199				     ;	     Draws a line by pattern
+    200				     ; Entry:
+    201				     ;	     AH	     ; color attr
+    202				     ;	     DS:SI   ; line pattern addr
+    203				     ;	     CX	     ; line length
+    204				     ;	     ES:DI   ; line beginng addr
+    205				     ; Desroy:
+    206				     ;	     AL, BX, CX, SI, DI
+    207				     ;------------------------------------------
+    208	0146			     draw_pat_line   proc
+    209	0146  FC				     cld				     ; DF = 0 (++)
+    210
+    211	0147  AC				     lodsb				     ; al = ds:[si++]
+    212	0148  AB				     stosw				     ; es:[di++] = ax
+    213	0149  83 E9 02				     sub cx, 2d				     ; cx -= 2 for first, last char
+    214
+    215	014C  AC				     lodsb				     ; al = ds:[si++]
     216
-    217
+    217	014D  F3> AB				     rep stosw				     ; while (CX != 0) {es:[di+=2] = ax}
     218
-    219
-    220
+    219	014F  AC				     lodsb				     ; al = ds:[si++]
+    220	0150  AB				     stosw				     ; es:[di+=2] = al
     221
-    222
-    223				     ;##########################################
-    224				     ;		     draw_rect
-    225				     ;------------------------------------------
-    226				     ;------------------------------------------
-    227				     ; Descr:
-    228				     ;	     Draws rectangle by	pattern
-Turbo Assembler	 Version 4.1	    02/17/25 21:12:47	    Page 5
+    222	0151  C3				     ret
+    223	0152					     endp
+    224				     ;------------------------------------------
+    225				     ;##########################################
+    226
+    227
+    228
+Turbo Assembler	 Version 4.1	    02/17/25 23:41:57	    Page 5
 tablet.asm
 
 
 
-    229				     ; Entry:
-    230				     ;	     AH	     - color attr
-    231				     ;	     DS:SI   - addr of pattern
-    232				     ;	     BX	     - rectangle height
-    233				     ;	     CX	     - rectangle width
-    234				     ;
-    235				     ;	     ES:DI   - rectangle upper left corner
-    236				     ; Destr:
-    237				     ;	     AX, SI
-    238				     ;------------------------------------------
-    239	014F			     draw_rect	     proc
-    240	014F  53				     push bx				     ;|
-    241	0150  51				     push cx				     ;|reg saving
-    242	0151  57				     push di				     ;|
-    243
-    244	0152  E8 FFEE				     call draw_pat_line			     ; call draw_pat_line
-    245
-    246	0155  5F				     pop di				     ;|
-    247	0156  59				     pop cx				     ;|reg restoring
-    248	0157  5B				     pop bx				     ;|
-    249
-    250	0158  81 C7 00A0			     add di, 160			     ;|next line
-    251	015C  83 EB 02				     sub bx, 2				     ;|
-    252
-    253	015F			     @@while:;-----------------------------------------------; while (BX > 0) {
-    254	015F  53				     push bx				     ;|
-    255	0160  51				     push cx				     ;|	     reg saving
-    256	0161  57				     push di				     ;|
-    257
-    258	0162  56				     push si				     ;	     save pattern middle triad addr
+    229
+    230
+    231
+    232
+    233				     ;##########################################
+    234				     ;		     draw_rect
+    235				     ;------------------------------------------
+    236				     ;------------------------------------------
+    237				     ; Descr:
+    238				     ;	     Draws rectangle by	pattern
+    239				     ; Entry:
+    240				     ;	     AH	     - color attr
+    241				     ;	     DS:SI   - addr of pattern
+    242				     ;	     BX	     - rectangle height
+    243				     ;	     CX	     - rectangle width
+    244				     ;
+    245				     ;	     ES:DI   - rectangle upper left corner
+    246				     ; Destr:
+    247				     ;	     AX, SI
+    248				     ;------------------------------------------
+    249	0152			     draw_rect	     proc
+    250	0152  53				     push bx				     ;|
+    251	0153  51				     push cx				     ;|reg saving
+    252	0154  57				     push di				     ;|
+    253
+    254	0155  E8 FFEE				     call draw_pat_line			     ; call draw_pat_line
+    255
+    256	0158  5F				     pop di				     ;|
+    257	0159  59				     pop cx				     ;|reg restoring
+    258	015A  5B				     pop bx				     ;|
     259
-    260	0163  E8 FFDD				     call draw_pat_line			     ;	     call draw_pat_line
-    261
-    262	0166  5E				     pop si				     ;	     restore patterm middle triad   +
-    263				     addr
-    264
-    265	0167  5F				     pop di				     ;|
-    266	0168  59				     pop cx				     ;|	     reg restoring
-    267	0169  5B				     pop bx				     ;|
-    268
-    269	016A  81 C7 00A0			     add di, 160			     ;|	     next line
-    270	016E  4B				     dec bx				     ;|
-    271	016F  83 FB 00				     cmp bx, 0				     ;	     if	dx > 0 -> jump @@while
-    272	0172  7F EB		     jg	@@while;---------------------------------------------; while end }
-    273
-    274	0174  83 C6 03				     add  si, 3d
-    275	0177  53				     push bx				     ;|
-    276	0178  51				     push cx				     ;|reg saving
-    277	0179  57				     push di				     ;|
+    260	015B  81 C7 00A0			     add di, 160			     ;|next line
+    261	015F  83 EB 02				     sub bx, 2				     ;|
+    262
+    263	0162			     @@while:;-----------------------------------------------; while (BX > 0) {
+    264	0162  53				     push bx				     ;|
+    265	0163  51				     push cx				     ;|	     reg saving
+    266	0164  57				     push di				     ;|
+    267
+    268	0165  56				     push si				     ;	     save pattern middle triad addr
+    269
+    270	0166  E8 FFDD				     call draw_pat_line			     ;	     call draw_pat_line
+    271
+    272	0169  5E				     pop si				     ;	     restore patterm middle triad   +
+    273				     addr
+    274
+    275	016A  5F				     pop di				     ;|
+    276	016B  59				     pop cx				     ;|	     reg restoring
+    277	016C  5B				     pop bx				     ;|
     278
-    279	017A  E8 FFC6				     call draw_pat_line			     ; call draw_pat_line
-    280
-    281	017D  5F				     pop di				     ;|
-    282	017E  59				     pop cx				     ;|reg restoring
-    283	017F  5B				     pop bx				     ;|
-    284
-    285	0180  C3				     ret
-Turbo Assembler	 Version 4.1	    02/17/25 21:12:47	    Page 6
+    279	016D  81 C7 00A0			     add di, 160			     ;|	     next line
+    280	0171  4B				     dec bx				     ;|
+    281	0172  83 FB 00				     cmp bx, 0				     ;	     if	dx > 0 -> jump @@while
+    282	0175  7F EB		     jg	@@while;---------------------------------------------; while end }
+    283
+    284	0177  83 C6 03				     add  si, 3d
+    285	017A  53				     push bx				     ;|
+Turbo Assembler	 Version 4.1	    02/17/25 23:41:57	    Page 6
 tablet.asm
 
 
 
-    286	0181					     endp
-    287				     ;------------------------------------------
-    288				     ;##########################################
-    289
-    290				     ;##########################################
-    291				     ;		     draw_string
-    292				     ;------------------------------------------
-    293				     ;------------------------------------------
-    294				     ; Descr:
-    295				     ;	     Draws a string by addr ES:DI untill
-    296				     ;	     <space> (20h) or <carriage	return>	(0Dh)
-    297				     ; Entry:
-    298				     ;	     AH	     ; color attr
-    299				     ;	     DS:SI   ; string memory addr
-    300				     ;	     ES:DI   ; line beginning addr
-    301				     ; Desroy:
-    302				     ;	     AL, BX, CX, SI, DI
-    303				     ;------------------------------------------
-    304	0181			     draw_string     proc
-    305	0181  FC				     cld				     ; DF = 0 (++)
-    306	0182			     @@while:;-----------------------------------------------; while (CX != 0) {
-    307	0182  AC				     lodsb				     ;	     al	= ds:[si++]
-    308
-    309						     CHECK_END_OF_STRING
-1   310	0183  3C 20				     cmp     al, 20h			     ;|if ax ==	<space>(20h): jmp end
-1   311	0185  74 07				     je	     @@end			     ;|
-1   312
-1   313	0187  3C 0D				     cmp     al, 0Dh			     ;|if ax ==	<carriage return>(0Dh):	jmp +
-    314				     end
-1   315	0189  74 03				     je	     @@end			     ;|
-    316
-    317	018B  AB				     stosw				     ;	     es:[di++] = ax
-    318	018C  EB F4				     jmp @@while
-    319				     ;-------------------------------------------------------; while end }
-    320	018E			     @@end:
-    321	018E  C3				     ret
-    322	018F					     endp
-    323				     ;------------------------------------------
-    324				     ;##########################################
-    325
-    326				     ;##########################################
-    327				     ;		     atoi_10
-    328				     ;------------------------------------------
-    329				     ;------------------------------------------
-    330				     ; Descr:
-    331				     ;	     convert decimal string
-    332				     ;	      to decimal integer
-    333				     ; Entry:
-    334				     ;	     DS:SI   ; string memory addr
-    335				     ; Return:
-    336				     ;	     BX	= integer gotten from string
-    337				     ; Desroy:
-    338				     ;	     AX, BX, CX, SI
-    339				     ; Warning:
-    340				     ;	     Scan string until <space> (20h) or	<carriage return> (0Dh)
-    341				     ; Error proc:
-    342				     ;	     If	string contains	non decimal characters
-Turbo Assembler	 Version 4.1	    02/17/25 21:12:47	    Page 7
+    286	017B  51				     push cx				     ;|reg saving
+    287	017C  57				     push di				     ;|
+    288
+    289	017D  E8 FFC6				     call draw_pat_line			     ; call draw_pat_line
+    290
+    291	0180  5F				     pop di				     ;|
+    292	0181  59				     pop cx				     ;|reg restoring
+    293	0182  5B				     pop bx				     ;|
+    294
+    295	0183  C3				     ret
+    296	0184					     endp
+    297				     ;------------------------------------------
+    298				     ;##########################################
+    299
+    300
+    301
+    302
+    303
+    304				     ;##########################################
+    305				     ;		     align_cord_cmp
+    306				     ;------------------------------------------
+    307				     ;------------------------------------------
+    308				     ; Descr:
+    309				     ;	     compute addr of left upper	corner of center aligned rectangle
+    310				     ; Entry:
+    311				     ;
+    312				     ;	     CONSOLE_HEIGH
+    313				     ;	      CONSOLE_WIDTH
+    314				     ;	     BX	     - rectangle height
+    315				     ;	     CX	     - rectangle width
+    316				     ; Destr: DI
+    317				     ; Return:
+    318				     ;	     DI	- addr of left upper corner
+    319				     ;------------------------------------------
+    320	0184			     align_cord_cmp  proc
+    321	0184  50				     push    ax				     ; save ax
+    322	0185  33 C0				     xor     ax, ax			     ; ax = 0
+    323
+    324	0187  A0 0001r				     mov     al, CONSOLE_HEIGH		     ;|
+    325	018A  2B C3				     sub     ax, bx			     ;|
+    326	018C  D1 E8				     shr     ax, 1			     ;|	ax = (CONSOLE_HEIGH - bx) / 2 *	80 *+
+    327				     2
+    328	018E  F6 26 0000r			     mul     CONSOLE_WIDTH		     ;|
+    329	0192  D1 E0				     shl     ax, 1			     ;|
+    330
+    331	0194  8B F8				     mov     di, ax			     ; di = ax
+    332	0196  33 C0				     xor     ax, ax			     ; ax = 0
+    333
+    334	0198  A0 0000r				     mov     al, CONSOLE_WIDTH		     ;|
+    335	019B  2B C1				     sub     ax, cx			     ;|
+    336	019D  D1 E8				     shr     ax, 1			     ;|	ax = (CONSOLE_WIDTH - cx) / 2 *	2
+    337	019F  D1 E0				     shl     ax, 1			     ;|
+    338
+    339	01A1  03 F8				     add     di, ax			     ; di += ax.
+    340											     ; di - addr of left upper corner of    +
+    341				     center aligned rectangle
+    342	01A3  58				     pop ax
+Turbo Assembler	 Version 4.1	    02/17/25 23:41:57	    Page 7
 tablet.asm
 
 
 
-    343				     ;	     Atoi will exit(1) with err	msg
-    344				     ;------------------------------------------
-    345	018F			     atoi_10	     proc
-    346
-    347	018F  33 DB				     xor bx, bx				     ; bx = 0
-    348	0191  FC				     cld				     ; DF = 1 (++)
-    349
-    350	0192			     @@while:;-----------------------------------------------; while (CX != 0) {
-    351	0192  33 C0				     xor     ax, ax			     ;	     ax	= 0
-    352	0194  AC				     lodsb				     ;	     al	= ds:[si++]
-    353
-    354						     CHECK_END_OF_STRING
-1   355	0195  3C 20				     cmp     al, 20h			     ;|if ax ==	<space>(20h): jmp end
-1   356	0197  74 18				     je	     @@end			     ;|
-1   357
-1   358	0199  3C 0D				     cmp     al, 0Dh			     ;|if ax ==	<carriage return>(0Dh):	jmp +
-    359				     end
-1   360	019B  74 14				     je	     @@end			     ;|
-    361
-    362						     ATOI_CHECK_DECIMAL_CHAR
-1   363	019D  3C 30				     cmp     al, 30h			     ;|if (ax <	'0') ->	jmp error
-1   364	019F  7C 11				     jl	     @@error			     ;|
-1   365	01A1  3C 39				     cmp     al, 39h			     ;|if (ax >	'9') ->	jmp error
-1   366	01A3  7F 0D				     jg	     @@error			     ;|
+    343
+    344	01A4  C3				     ret
+    345	01A5					     endp
+    346				     ;------------------------------------------
+    347				     ;##########################################
+    348
+    349				     ;##########################################
+    350				     ;		     draw_string
+    351				     ;------------------------------------------
+    352				     ;------------------------------------------
+    353				     ; Descr:
+    354				     ;	     Draws a string by addr ES:DI untill
+    355				     ;	     <space> (20h) or <carriage	return>	(0Dh)
+    356				     ; Entry:
+    357				     ;	     AH	     ; color attr
+    358				     ;	     DS:SI   ; string memory addr
+    359				     ;	     ES:DI   ; line beginning addr
+    360				     ; Desroy:
+    361				     ;	     AL, BX, CX, SI, DI
+    362				     ;------------------------------------------
+    363	01A5			     draw_string     proc
+    364	01A5  FC				     cld				     ; DF = 0 (++)
+    365	01A6			     @@while:;-----------------------------------------------; while (CX != 0) {
+    366	01A6  AC				     lodsb				     ;	     al	= ds:[si++]
     367
-    368	01A5  2D 0030				     sub     ax, DEC_DIGITS_SHIFT	     ;	     'digit' ->	digit ('3' -> 3)
-    369
-    370	01A8  93				     xchg    ax, bx			     ;	     swap(ax, bx)
-    371	01A9  F6 26 0000r			     mul     DEC_NUM_BASE		     ;|	     ax	= ax * 10     FIXME:	    +
-    372				     (переписать на	lea/сдвиги)
-    373	01AD  03 D8				     add     bx, ax
-    374
-    375	01AF  EB E1				     jmp     @@while
-    376				     ;-------------------------------------------------------; while end }
-    377
-    378	01B1			     @@end:
-    379	01B1  C3				     ret
-    380	01B2			     @@error:
-    381						     CALL_ATOI_10_ERROR_PROC
-1   382	01B2  B4 09				     mov     ah, 09h			      ;|
-1   383	01B4  BA 0020r				     mov     dx, offset	atoi10_error_msg      ;|print(atoi10_error_msg)
-1   384	01B7  CD 21				     int     21h			      ;|
-1   385
-1   386	01B9  B8 4C01				     mov     ax, 4c01h			      ;|
-1   387	01BC  CD 21				     int     21h			      ;|exit(1)
-    388	01BE					     endp
-    389				     ;------------------------------------------
-    390				     ;##########################################
-    391
-    392
-    393
-    394
-    395				     ;##########################################
-    396				     ;		     atoi_16
-    397				     ;------------------------------------------
-    398				     ;------------------------------------------
-    399				     ; Descr:
-Turbo Assembler	 Version 4.1	    02/17/25 21:12:47	    Page 8
+    368						     CHECK_END_OF_STRING
+1   369	01A7  3C 20				     cmp     al, 20h			     ;|if ax ==	<space>(20h): jmp end
+1   370	01A9  74 07				     je	     @@end			     ;|
+1   371
+1   372	01AB  3C 0D				     cmp     al, 0Dh			     ;|if ax ==	<carriage return>(0Dh):	jmp +
+    373				     end
+1   374	01AD  74 03				     je	     @@end			     ;|
+    375
+    376	01AF  AB				     stosw				     ;	     es:[di++] = ax
+    377	01B0  EB F4				     jmp @@while
+    378				     ;-------------------------------------------------------; while end }
+    379	01B2			     @@end:
+    380	01B2  C3				     ret
+    381	01B3					     endp
+    382				     ;------------------------------------------
+    383				     ;##########################################
+    384
+    385				     ;##########################################
+    386				     ;		     atoi_10
+    387				     ;------------------------------------------
+    388				     ;------------------------------------------
+    389				     ; Descr:
+    390				     ;	     convert decimal string
+    391				     ;	      to decimal integer
+    392				     ; Entry:
+    393				     ;	     DS:SI   ; string memory addr
+    394				     ; Return:
+    395				     ;	     BX	= integer gotten from string
+    396				     ; Desroy:
+    397				     ;	     AX, BX, CX, SI
+    398				     ; Warning:
+    399				     ;	     Scan string until <space> (20h) or	<carriage return> (0Dh)
+Turbo Assembler	 Version 4.1	    02/17/25 23:41:57	    Page 8
 tablet.asm
 
 
 
-    400				     ;	     convert hexadecimal string
-    401				     ;	      to hexadecimal integer
-    402				     ; Entry:
-    403				     ;	     DS:SI   ; string memory addr
-    404				     ; Return:
-    405				     ;	     BX	= integer gotten from string
-    406				     ; Desroy:
-    407				     ;	     AX, BX, CX, SI
-    408				     ; Warning:
-    409				     ;	     Scan string until <space> (20h) or	<carriage return> (0Dh)
-    410				     ; Error proc:
-    411				     ;	     If	string contains	non decimal characters
-    412				     ;	     Atoi will exit(1) with err	msg
-    413				     ;------------------------------------------
-    414	01BE			     atoi_16	     proc
-    415
-    416	01BE  33 DB				     xor bx, bx				     ; bx = 0
-    417	01C0  FC				     cld				     ; DF = 1 (++)
-    418
-    419	01C1			     @@while:;-----------------------------------------------; while (CX != 0) {
-    420	01C1  33 C0				     xor     ax, ax			     ;	     ax	= 0
-    421	01C3  AC				     lodsb				     ;	     al	= ds:[si++]
-    422
-    423						     CHECK_END_OF_STRING
-1   424	01C4  3C 20				     cmp     al, 20h			     ;|if ax ==	<space>(20h): jmp end
-1   425	01C6  74 3F				     je	     @@end			     ;|
-1   426
-1   427	01C8  3C 0D				     cmp     al, 0Dh			     ;|if ax ==	<carriage return>(0Dh):	jmp +
-    428				     end
-1   429	01CA  74 3B				     je	     @@end			     ;|
-    430
-    431						     ATOI_CHECK_HEX_CHAR
-1   432	01CC  3C 30				     cmp     al, 30h			     ;|if (al <	'0') ->	jmp error
-1   433	01CE  7C 38				     jl	     @@error			     ;|
-1   434
-1   435	01D0  3C 66				     cmp     al, 66h			     ;|if (ax >	'f') ->	jmp error
-1   436	01D2  7F 34				     jg	     @@error			     ;|
-1   437
-1   438
-1   439	01D4  3C 39				     cmp     al, 39h			     ;|if ('9' < al < 'A') -> jmp error
-1   440	01D6  7E 04				     jle     @@leter_check_upper_end	     ;|
-1   441	01D8			     @@leter_check_upper:				     ;|
-1   442	01D8  3C 41				     cmp     al, 41h			     ;|
-1   443	01DA  7C 2C				     jl	     @@error			     ;|
-1   444	01DC			     @@leter_check_upper_end:				     ;|
-1   445
-1   446
-1   447	01DC  3C 46				     cmp     al, 46h			     ;|if ('F' < al < 'a') -> jmp error
-1   448	01DE  7E 04				     jle     @@leter_check2_lower_end	     ;|
-1   449	01E0			     @@leter_check_lower:				     ;|
-1   450	01E0  3C 61				     cmp     al, 61h			     ;|
-1   451	01E2  7C 24				     jl	     @@error			     ;|
-1   452	01E4			     @@leter_check2_lower_end:				     ;|
+    400				     ; Error proc:
+    401				     ;	     If	string contains	non decimal characters
+    402				     ;	     Atoi will exit(1) with err	msg
+    403				     ;------------------------------------------
+    404	01B3			     atoi_10	     proc
+    405
+    406	01B3  33 DB				     xor bx, bx				     ; bx = 0
+    407	01B5  FC				     cld				     ; DF = 1 (++)
+    408
+    409	01B6			     @@while:;-----------------------------------------------; while (CX != 0) {
+    410	01B6  33 C0				     xor     ax, ax			     ;	     ax	= 0
+    411	01B8  AC				     lodsb				     ;	     al	= ds:[si++]
+    412
+    413						     CHECK_END_OF_STRING
+1   414	01B9  3C 20				     cmp     al, 20h			     ;|if ax ==	<space>(20h): jmp end
+1   415	01BB  74 18				     je	     @@end			     ;|
+1   416
+1   417	01BD  3C 0D				     cmp     al, 0Dh			     ;|if ax ==	<carriage return>(0Dh):	jmp +
+    418				     end
+1   419	01BF  74 14				     je	     @@end			     ;|
+    420
+    421						     ATOI_CHECK_DECIMAL_CHAR
+1   422	01C1  3C 30				     cmp     al, 30h			     ;|if (ax <	'0') ->	jmp error
+1   423	01C3  7C 11				     jl	     @@error			     ;|
+1   424	01C5  3C 39				     cmp     al, 39h			     ;|if (ax >	'9') ->	jmp error
+1   425	01C7  7F 0D				     jg	     @@error			     ;|
+    426
+    427	01C9  2D 0030				     sub     ax, DEC_DIGITS_SHIFT	     ;	     'digit' ->	digit ('3' -> 3)
+    428
+    429	01CC  93				     xchg    ax, bx			     ;	     swap(ax, bx)
+    430	01CD  F6 26 0002r			     mul     DEC_NUM_BASE		     ;|	     ax	= ax * 10     FIXME:	    +
+    431				     (переписать на	lea/сдвиги)
+    432	01D1  03 D8				     add     bx, ax
+    433
+    434	01D3  EB E1				     jmp     @@while
+    435				     ;-------------------------------------------------------; while end }
+    436
+    437	01D5			     @@end:
+    438	01D5  C3				     ret
+    439	01D6			     @@error:
+    440						     CALL_ATOI_10_ERROR_PROC
+1   441	01D6  B4 09				     mov     ah, 09h			      ;|
+1   442	01D8  BA 0022r				     mov     dx, offset	atoi10_error_msg      ;|print(atoi10_error_msg)
+1   443	01DB  CD 21				     int     21h			      ;|
+1   444
+1   445	01DD  B8 4C01				     mov     ax, 4c01h			      ;|
+1   446	01E0  CD 21				     int     21h			      ;|exit(1)
+    447	01E2					     endp
+    448				     ;------------------------------------------
+    449				     ;##########################################
+    450
+    451
+    452
     453
-    454
-    455	01E4  3C 39				     cmp     al, 39h
-    456	01E6  7E 08				     jle     @@digit_shift_proc
-Turbo Assembler	 Version 4.1	    02/17/25 21:12:47	    Page 9
+    454				     ;##########################################
+    455				     ;		     atoi_16
+    456				     ;------------------------------------------
+Turbo Assembler	 Version 4.1	    02/17/25 23:41:57	    Page 9
 tablet.asm
 
 
 
-    457
-    458	01E8  3C 46				     cmp     al, 46h
-    459	01EA  7E 09				     jle     @@uppercase_shif_proc
-    460
-    461	01EC  3C 66				     cmp     al, 66h
-    462	01EE  7E 0A				     jle     @@lowercase_shif_proc
-    463
-    464
-    465	01F0			     @@digit_shift_proc:
-    466	01F0  2C 30				     sub     al, DEC_DIGITS_SHIFT	     ; ASCII ->	dec sim	value
-    467	01F2  EB 0B 90				     jmp     @@general_result_proc	     ;
-    468
-    469	01F5			     @@uppercase_shif_proc:
-    470	01F5  2C 37				     sub     al, UPPERCASE_HEX_SHIFT	     ; ASCII ->	hex upper case value
-    471	01F7  EB 06 90				     jmp     @@general_result_proc
-    472
-    473	01FA			     @@lowercase_shif_proc:
-    474	01FA  2C 57				     sub     al, LOWERCASE_HEX_SHIFT	     ; ASCII ->	hex lower case value
-    475	01FC  EB 01 90				     jmp     @@general_result_proc
-    476
+    457				     ;------------------------------------------
+    458				     ; Descr:
+    459				     ;	     convert hexadecimal string
+    460				     ;	      to hexadecimal integer
+    461				     ; Entry:
+    462				     ;	     DS:SI   ; string memory addr
+    463				     ; Return:
+    464				     ;	     BX	= integer gotten from string
+    465				     ; Desroy:
+    466				     ;	     AX, BX, CX, SI
+    467				     ; Warning:
+    468				     ;	     Scan string until <space> (20h) or	<carriage return> (0Dh)
+    469				     ; Error proc:
+    470				     ;	     If	string contains	non decimal characters
+    471				     ;	     Atoi will exit(1) with err	msg
+    472				     ;------------------------------------------
+    473	01E2			     atoi_16	     proc
+    474
+    475	01E2  33 DB				     xor bx, bx				     ; bx = 0
+    476	01E4  FC				     cld				     ; DF = 1 (++)
     477
-    478
-    479	01FF			     @@general_result_proc:
-    480	01FF  93				     xchg    ax, bx			     ;	     swap(ax, bx)
-    481	0200  C1 E0 04				     shl     ax, 4			     ;|	     ax	= ax * 16
-    482	0203  03 D8				     add     bx, ax
-    483
-    484	0205  EB BA				     jmp     @@while
-    485				     ;-------------------------------------------------------; while end }
-    486
-    487	0207			     @@end:
-    488	0207  C3				     ret
-    489	0208			     @@error:
-    490						     CALL_ATOI_16_ERROR_PROC
-1   491	0208  B4 09				     mov     ah, 09h			      ;|
-1   492	020A  BA 004Fr				     mov     dx, offset	atoi16_error_msg      ;|print(atoi16_error_msg)
-1   493	020D  CD 21				     int     21h			      ;|
-1   494
-1   495	020F  B8 4C01				     mov     ax, 4c01h			      ;|
-1   496	0212  CD 21				     int     21h			      ;|exit(1)
-    497	0214			     endp
-    498				     ;------------------------------------------
-    499				     ;##########################################
-    500				     end start
-Turbo Assembler	 Version 4.1	    02/17/25 21:12:47	    Page 10
+    478	01E5			     @@while:;-----------------------------------------------; while (CX != 0) {
+    479	01E5  33 C0				     xor     ax, ax			     ;	     ax	= 0
+    480	01E7  AC				     lodsb				     ;	     al	= ds:[si++]
+    481
+    482						     CHECK_END_OF_STRING
+1   483	01E8  3C 20				     cmp     al, 20h			     ;|if ax ==	<space>(20h): jmp end
+1   484	01EA  74 3F				     je	     @@end			     ;|
+1   485
+1   486	01EC  3C 0D				     cmp     al, 0Dh			     ;|if ax ==	<carriage return>(0Dh):	jmp +
+    487				     end
+1   488	01EE  74 3B				     je	     @@end			     ;|
+    489
+    490						     ATOI_CHECK_HEX_CHAR
+1   491	01F0  3C 30				     cmp     al, 30h			     ;|if (al <	'0') ->	jmp error
+1   492	01F2  7C 38				     jl	     @@error			     ;|
+1   493
+1   494	01F4  3C 66				     cmp     al, 66h			     ;|if (ax >	'f') ->	jmp error
+1   495	01F6  7F 34				     jg	     @@error			     ;|
+1   496
+1   497
+1   498	01F8  3C 39				     cmp     al, 39h			     ;|if ('9' < al < 'A') -> jmp error
+1   499	01FA  7E 04				     jle     @@leter_check_upper_end	     ;|
+1   500	01FC			     @@leter_check_upper:				     ;|
+1   501	01FC  3C 41				     cmp     al, 41h			     ;|
+1   502	01FE  7C 2C				     jl	     @@error			     ;|
+1   503	0200			     @@leter_check_upper_end:				     ;|
+1   504
+1   505
+1   506	0200  3C 46				     cmp     al, 46h			     ;|if ('F' < al < 'a') -> jmp error
+1   507	0202  7E 04				     jle     @@leter_check2_lower_end	     ;|
+1   508	0204			     @@leter_check_lower:				     ;|
+1   509	0204  3C 61				     cmp     al, 61h			     ;|
+1   510	0206  7C 24				     jl	     @@error			     ;|
+1   511	0208			     @@leter_check2_lower_end:				     ;|
+    512
+    513
+Turbo Assembler	 Version 4.1	    02/17/25 23:41:57	    Page 10
+tablet.asm
+
+
+
+    514	0208  3C 39				     cmp     al, 39h
+    515	020A  7E 08				     jle     @@digit_shift_proc
+    516
+    517	020C  3C 46				     cmp     al, 46h
+    518	020E  7E 09				     jle     @@uppercase_shif_proc
+    519
+    520	0210  3C 66				     cmp     al, 66h
+    521	0212  7E 0A				     jle     @@lowercase_shif_proc
+    522
+    523
+    524	0214			     @@digit_shift_proc:
+    525	0214  2C 30				     sub     al, DEC_DIGITS_SHIFT	     ; ASCII ->	dec sim	value
+    526	0216  EB 0B 90				     jmp     @@general_result_proc	     ;
+    527
+    528	0219			     @@uppercase_shif_proc:
+    529	0219  2C 37				     sub     al, UPPERCASE_HEX_SHIFT	     ; ASCII ->	hex upper case value
+    530	021B  EB 06 90				     jmp     @@general_result_proc
+    531
+    532	021E			     @@lowercase_shif_proc:
+    533	021E  2C 57				     sub     al, LOWERCASE_HEX_SHIFT	     ; ASCII ->	hex lower case value
+    534	0220  EB 01 90				     jmp     @@general_result_proc
+    535
+    536
+    537
+    538	0223			     @@general_result_proc:
+    539	0223  93				     xchg    ax, bx			     ;	     swap(ax, bx)
+    540	0224  C1 E0 04				     shl     ax, 4			     ;|	     ax	= ax * 16
+    541	0227  03 D8				     add     bx, ax
+    542
+    543	0229  EB BA				     jmp     @@while
+    544				     ;-------------------------------------------------------; while end }
+    545
+    546	022B			     @@end:
+    547	022B  C3				     ret
+    548	022C			     @@error:
+    549						     CALL_ATOI_16_ERROR_PROC
+1   550	022C  B4 09				     mov     ah, 09h			      ;|
+1   551	022E  BA 0051r				     mov     dx, offset	atoi16_error_msg      ;|print(atoi16_error_msg)
+1   552	0231  CD 21				     int     21h			      ;|
+1   553
+1   554	0233  B8 4C01				     mov     ax, 4c01h			      ;|
+1   555	0236  CD 21				     int     21h			      ;|exit(1)
+    556	0238			     endp
+    557				     ;------------------------------------------
+    558				     ;##########################################
+    559				     end start
+Turbo Assembler	 Version 4.1	    02/17/25 23:41:57	    Page 11
 Symbol Table
 
 
@@ -553,26 +617,26 @@ Symbol Name			  Type	 Value
 
 ??DATE				  Text	 "02/17/25"
 ??FILENAME			  Text	 "tablet  "
-??TIME				  Text	 "21:12:47"
+??TIME				  Text	 "23:41:57"
 ??VERSION			  Number 040A
 @32BIT				  Text	 0
-@@DIGIT_SHIFT_PROC		  Near	 DGROUP:01F0
-@@END				  Near	 DGROUP:018E
-@@END				  Near	 DGROUP:01B1
-@@END				  Near	 DGROUP:0207
-@@ERROR				  Near	 DGROUP:01B2
-@@ERROR				  Near	 DGROUP:0208
-@@GENERAL_RESULT_PROC		  Near	 DGROUP:01FF
-@@LETER_CHECK2_LOWER_END	  Near	 DGROUP:01E4
-@@LETER_CHECK_LOWER		  Near	 DGROUP:01E0
-@@LETER_CHECK_UPPER		  Near	 DGROUP:01D8
-@@LETER_CHECK_UPPER_END		  Near	 DGROUP:01DC
-@@LOWERCASE_SHIF_PROC		  Near	 DGROUP:01FA
-@@UPPERCASE_SHIF_PROC		  Near	 DGROUP:01F5
-@@WHILE				  Near	 DGROUP:015F
-@@WHILE				  Near	 DGROUP:0182
-@@WHILE				  Near	 DGROUP:0192
-@@WHILE				  Near	 DGROUP:01C1
+@@DIGIT_SHIFT_PROC		  Near	 DGROUP:0214
+@@END				  Near	 DGROUP:01B2
+@@END				  Near	 DGROUP:01D5
+@@END				  Near	 DGROUP:022B
+@@ERROR				  Near	 DGROUP:01D6
+@@ERROR				  Near	 DGROUP:022C
+@@GENERAL_RESULT_PROC		  Near	 DGROUP:0223
+@@LETER_CHECK2_LOWER_END	  Near	 DGROUP:0208
+@@LETER_CHECK_LOWER		  Near	 DGROUP:0204
+@@LETER_CHECK_UPPER		  Near	 DGROUP:01FC
+@@LETER_CHECK_UPPER_END		  Near	 DGROUP:0200
+@@LOWERCASE_SHIF_PROC		  Near	 DGROUP:021E
+@@UPPERCASE_SHIF_PROC		  Near	 DGROUP:0219
+@@WHILE				  Near	 DGROUP:0162
+@@WHILE				  Near	 DGROUP:01A6
+@@WHILE				  Near	 DGROUP:01B6
+@@WHILE				  Near	 DGROUP:01E5
 @CODE				  Text	 DGROUP
 @CODESIZE			  Text	 0
 @CPU				  Text	 0103H
@@ -584,32 +648,36 @@ Symbol Name			  Type	 Value
 @MODEL				  Text	 1
 @STACK				  Text	 DGROUP
 @WORDSIZE			  Text	 2
+ALIGN_CORD_CMP			  Near	 DGROUP:0184
 ARGS_ADDR			  Number 0082
-ATOI10_ERROR_MSG		  Byte	 DGROUP:0020
-ATOI16_ERROR_MSG		  Byte	 DGROUP:004F
-ATOI_10				  Near	 DGROUP:018F
-ATOI_16				  Near	 DGROUP:01BE
+ATOI10_ERROR_MSG		  Byte	 DGROUP:0022
+ATOI16_ERROR_MSG		  Byte	 DGROUP:0051
+ATOI_10				  Near	 DGROUP:01B3
+ATOI_16				  Near	 DGROUP:01E2
+CONSOLE_HEIGH			  Byte	 DGROUP:0001
+CONSOLE_SCROLLING_CNT		  Number 0002
+CONSOLE_WIDTH			  Byte	 DGROUP:0000
 DEC_DIGITS_SHIFT		  Number 0030
-DEC_NUM_BASE			  Byte	 DGROUP:0000
-DRAW_PAT_LINE			  Near	 DGROUP:0143
-DRAW_RECT			  Near	 DGROUP:014F
-DRAW_STRING			  Near	 DGROUP:0181
+DEC_NUM_BASE			  Byte	 DGROUP:0002
+DRAW_PAT_LINE			  Near	 DGROUP:0146
+DRAW_RECT			  Near	 DGROUP:0152
+DRAW_STRING			  Near	 DGROUP:01A5
 HEX_NUM_BASE			  Number 0010
 LOWERCASE_HEX_SHIFT		  Number 0057
-RS1				  Byte	 DGROUP:007A
-RS2				  Byte	 DGROUP:0084
+RS1				  Byte	 DGROUP:007C
+RS2				  Byte	 DGROUP:0086
 START				  Near	 DGROUP:0100
-STYLES_ARR			  Word	 DGROUP:008E
-TABLET_STRING			  Byte	 DGROUP:0001
-UPPERCASE_HEX_SHIFT		  Number 0037
-USER_STYLE			  Near	 DGROUP:0127
-VIDEOSEG			  Number B800
-X_CORD				  Number 0005
-Turbo Assembler	 Version 4.1	    02/17/25 21:12:47	    Page 11
+STYLES_ARR			  Word	 DGROUP:0090
+TABLET_STRING			  Byte	 DGROUP:0003
+Turbo Assembler	 Version 4.1	    02/17/25 23:41:57	    Page 12
 Symbol Table
 
 
 
+UPPERCASE_HEX_SHIFT		  Number 0037
+USER_STYLE			  Near	 DGROUP:0127
+VIDEOSEG			  Number B800
+X_CORD				  Number 0005
 Y_CORD				  Number 0005
 
 Macro Name
@@ -623,6 +691,6 @@ CHECK_END_OF_STRING
 Groups & Segments		  Bit Size Align  Combine Class
 
 DGROUP				  Group
-  _DATA				  16  0092 Word	  Public  DATA
-  _TEXT				  16  0214 Word	  Public  CODE
+  _DATA				  16  0094 Word	  Public  DATA
+  _TEXT				  16  0238 Word	  Public  CODE
 

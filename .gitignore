@@ -1,7 +1,12 @@
-.COM
-.LST
-.MAP
-.OBJ
+*.COM
+*.LST
+*.MAP
+*.OBJ
+
+*.com
+*.lst
+*.com
+*.obj
 
 docs/*
 temp

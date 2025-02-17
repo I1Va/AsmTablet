@@ -69,6 +69,9 @@ ARGS_ADDR               equ 0082h
 DEC_DIGITS_SHIFT        equ 30h
 UPPERCASE_HEX_SHIFT     equ 37h
 LOWERCASE_HEX_SHIFT     equ 57h
+CONSOLE_WIDTH           db 80d
+CONSOLE_HEIGH           db 25d
+CONSOLE_SCROLLING_CNT   equ 2d
 
 VIDEOSEG                equ 0b800h
 X_CORD                  equ 5d
@@ -113,7 +116,6 @@ start:
 
 
                 mov     ah, bl                          ;| ah(color attr) = atoi(3rd arg)
-                ;mov     ah, 0ceh
 
 
                 pop     bx                              ; restore bx(rect_height)
@@ -137,18 +139,25 @@ start:
 USER_STYLE:
                 mov     dx, VIDEOSEG                    ;|
                 mov     es, dx                          ;|es = VIDEOSEG
-                mov di, (X_CORD * 80d + Y_CORD) * 2d    ; DI = addr of (X_CORD, Y_CORD)
 
                 pop     ax                              ; restore ax(color attr)
                 pop     bx                              ; restore bx(rect_height)
+
+                call    align_cord_cmp                  ;|align_cord_cmp:
+                                                        ;|      Entry: CONSOLE_HEIGH, CONSOLE_WIDTH, BX, CX
+                                                        ;|      Return: DI
+                                                        ;|      Destr: DI
+
+                push    di                              ; save rect corner addr
 
                 call    draw_rect                       ;|draw_rect:
                                                         ;|      Entry:   AH, DS:SI, BX, CX, ES:DI
                                                         ;|      Destroy: AX, SI
 
+                pop     di                              ; restore rect corner addr
                 mov     si, bp                          ; restore si(addr of current arg)
                 mov     ah, 11001110b                   ; label color attr
-                mov     di, (11d * 80d + 11d) * 2d      ; DI = addr of label addr on screen
+                add     di, (80 * 2 + 2) * 2            ; DI = addr of label addr on screen
 
                 call    draw_string                     ;|draw_string
                                                         ;|      Entry:    AH, DS:SI, ES:DI
@@ -258,6 +267,53 @@ jg @@while;---------------------------------------------; while end }
                 pop di                                  ;|
                 pop cx                                  ;|reg restoring
                 pop bx                                  ;|
+
+                ret
+                endp
+;------------------------------------------
+;##########################################
+
+
+
+
+
+;##########################################
+;               align_cord_cmp
+;------------------------------------------
+;------------------------------------------
+; Descr:
+;       compute addr of left upper corner of center aligned rectangle
+; Entry:
+;
+;       CONSOLE_HEIGH
+;        CONSOLE_WIDTH
+;       BX      - rectangle height
+;       CX      - rectangle width
+; Destr: DI
+; Return:
+;       DI - addr of left upper corner
+;------------------------------------------
+align_cord_cmp  proc
+                push    ax                              ; save ax
+                xor     ax, ax                          ; ax = 0
+
+                mov     al, CONSOLE_HEIGH               ;|
+                sub     ax, bx                          ;|
+                shr     ax, 1                           ;| ax = (CONSOLE_HEIGH - bx) / 2 * 80 * 2
+                mul     CONSOLE_WIDTH                   ;|
+                shl     ax, 1                           ;|
+
+                mov     di, ax                          ; di = ax
+                xor     ax, ax                          ; ax = 0
+
+                mov     al, CONSOLE_WIDTH               ;|
+                sub     ax, cx                          ;|
+                shr     ax, 1                           ;| ax = (CONSOLE_WIDTH - cx) / 2 * 2
+                shl     ax, 1                           ;|
+
+                add     di, ax                          ; di += ax.
+                                                        ; di - addr of left upper corner of center aligned rectangle
+                pop ax
 
                 ret
                 endp
