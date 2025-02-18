@@ -1,4 +1,4 @@
-Turbo Assembler	 Version 4.1	    02/18/25 12:26:15	    Page 1
+Turbo Assembler	 Version 4.1	    02/18/25 19:21:27	    Page 1
 tablet.asm
 
 
@@ -60,7 +60,7 @@ tablet.asm
      55
      56				     CALL_ATOI_16_ERROR_PROC macro
      57						     mov     ah, 09h			      ;|
-Turbo Assembler	 Version 4.1	    02/18/25 12:26:15	    Page 2
+Turbo Assembler	 Version 4.1	    02/18/25 19:21:27	    Page 2
 tablet.asm
 
 
@@ -122,7 +122,7 @@ tablet.asm
     112	00AE  0D 24		     CARRIAGE_RET_CHAR db 0Dh, '$'
     113	00B0  2B 3D 2B 7C 2E 7C	2B+  RS1 db "+=+|.|+=+$"
     114	      3D 2B 24
-Turbo Assembler	 Version 4.1	    02/18/25 12:26:15	    Page 3
+Turbo Assembler	 Version 4.1	    02/18/25 19:21:27	    Page 3
 tablet.asm
 
 
@@ -184,7 +184,7 @@ tablet.asm
     169
     170	0121  8B EE				     mov     bp, si			     ;|	save si	(addr of current arg).
     171											     ;|	I use mov, because push	will cause  +
-Turbo Assembler	 Version 4.1	    02/18/25 12:26:15	    Page 4
+Turbo Assembler	 Version 4.1	    02/18/25 19:21:27	    Page 4
 tablet.asm
 
 
@@ -246,7 +246,7 @@ tablet.asm
     226	0146			     scan_next_word  proc
     227	0146  FC				     cld				     ; DF = 0 (++)
     228
-Turbo Assembler	 Version 4.1	    02/18/25 12:26:15	    Page 5
+Turbo Assembler	 Version 4.1	    02/18/25 19:21:27	    Page 5
 tablet.asm
 
 
@@ -308,7 +308,7 @@ tablet.asm
     283	0174  E2 FC				     loop @@while
     284				     ;-------------------------------------------------------; while end }
     285	0176  5E 58				     pop si ax
-Turbo Assembler	 Version 4.1	    02/18/25 12:26:15	    Page 6
+Turbo Assembler	 Version 4.1	    02/18/25 19:21:27	    Page 6
 tablet.asm
 
 
@@ -335,7 +335,7 @@ tablet.asm
     305				     ;	     AX		 ; line	length (should be < 128)
     306				     ;
     307				     ; Desroy:
-    308				     ;
+    308				     ;	     ?
     309				     ;------------------------------------------
     310	0179			     split_text	     proc
     311
@@ -370,7 +370,7 @@ tablet.asm
     340	01A3			     @@line_break:
     341	01A3  2B D9				     sub     bx, cx
     342	01A5			     @@new_line:
-Turbo Assembler	 Version 4.1	    02/18/25 12:26:15	    Page 7
+Turbo Assembler	 Version 4.1	    02/18/25 19:21:27	    Page 7
 tablet.asm
 
 
@@ -432,7 +432,7 @@ tablet.asm
     397
     398	01D2  F3> AB				     rep stosw				     ; while (CX != 0) {es:[di+=2] = ax}
     399
-Turbo Assembler	 Version 4.1	    02/18/25 12:26:15	    Page 8
+Turbo Assembler	 Version 4.1	    02/18/25 19:21:27	    Page 8
 tablet.asm
 
 
@@ -494,7 +494,7 @@ tablet.asm
     454				     addr
     455
     456	01EF  5F				     pop di				     ;|
-Turbo Assembler	 Version 4.1	    02/18/25 12:26:15	    Page 9
+Turbo Assembler	 Version 4.1	    02/18/25 19:21:27	    Page 9
 tablet.asm
 
 
@@ -556,7 +556,7 @@ tablet.asm
     511
     512	0219  8B F8				     mov     di, ax			     ; di = ax
     513	021B  33 C0				     xor     ax, ax			     ; ax = 0
-Turbo Assembler	 Version 4.1	    02/18/25 12:26:15	    Page 10
+Turbo Assembler	 Version 4.1	    02/18/25 19:21:27	    Page 10
 tablet.asm
 
 
@@ -618,7 +618,7 @@ tablet.asm
     568				     ;	      to decimal integer
     569				     ; Entry:
     570				     ;	     DS:SI   ; string memory addr
-Turbo Assembler	 Version 4.1	    02/18/25 12:26:15	    Page 11
+Turbo Assembler	 Version 4.1	    02/18/25 19:21:27	    Page 11
 tablet.asm
 
 
@@ -680,7 +680,7 @@ tablet.asm
     625				     ;##########################################
     626
     627
-Turbo Assembler	 Version 4.1	    02/18/25 12:26:15	    Page 12
+Turbo Assembler	 Version 4.1	    02/18/25 19:21:27	    Page 12
 tablet.asm
 
 
@@ -742,7 +742,7 @@ tablet.asm
 1   682	0289  7E 04				     jle     @@leter_check2_lower_end	     ;|
 1   683	028B			     @@leter_check_lower:				     ;|
 1   684	028B  3C 61				     cmp     al, 61h			     ;|
-Turbo Assembler	 Version 4.1	    02/18/25 12:26:15	    Page 13
+Turbo Assembler	 Version 4.1	    02/18/25 19:21:27	    Page 13
 tablet.asm
 
 
@@ -797,7 +797,7 @@ tablet.asm
     732				     ;------------------------------------------
     733				     ;##########################################
     734				     end start
-Turbo Assembler	 Version 4.1	    02/18/25 12:26:15	    Page 14
+Turbo Assembler	 Version 4.1	    02/18/25 19:21:27	    Page 14
 Symbol Table
 
 
@@ -807,7 +807,7 @@ Symbol Name			  Type	 Value
 
 ??DATE				  Text	 "02/18/25"
 ??FILENAME			  Text	 "tablet  "
-??TIME				  Text	 "12:26:15"
+??TIME				  Text	 "19:21:27"
 ??VERSION			  Number 040A
 @32BIT				  Text	 0
 @@DIGIT_SHIFT_PROC		  Near	 DGROUP:029B
@@ -859,7 +859,7 @@ CONSOLE_WIDTH			  Byte	 DGROUP:0000
 DEC_DIGITS_SHIFT		  Number 0030
 DEC_NUM_BASE			  Byte	 DGROUP:0002
 DRAW_PAT_LINE			  Near	 DGROUP:01CB
-Turbo Assembler	 Version 4.1	    02/18/25 12:26:15	    Page 15
+Turbo Assembler	 Version 4.1	    02/18/25 19:21:27	    Page 15
 Symbol Table
 
 
