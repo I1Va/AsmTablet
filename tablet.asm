@@ -36,15 +36,6 @@ ATOI_CHECK_HEX_CHAR macro
 endm
 
 
-CHECK_END_OF_STRING macro
-                cmp     al, 20h                         ;|if ax == <space>(20h): jmp end
-                je      @@end                           ;|
-
-                cmp     al, 0Dh                         ;|if ax == <carriage return>(0Dh): jmp end
-                je      @@end                           ;|
-endm
-
-
 CALL_ATOI_10_ERROR_PROC macro
                 mov     ah, 09h                          ;|
                 mov     dx, offset atoi10_error_msg      ;|print(atoi10_error_msg)
@@ -52,6 +43,14 @@ CALL_ATOI_10_ERROR_PROC macro
 
                 mov     ax, 4c01h                        ;|
                 int     21h                              ;|exit(1)
+endm
+CALL_SPLIT_TEXT_ERROR_PROC macro
+                mov     ah, 09h                          ;|
+                mov     dx, offset atoi16_error_msg      ;|print(split_text_error_msg)
+                int     21h                              ;|
+
+                mov     ax, 4c01h                        ;|
+                int     21h
 endm
 
 CALL_ATOI_16_ERROR_PROC macro
@@ -80,14 +79,25 @@ Y_CORD                  equ 5d
 DEC_NUM_BASE            db 10d
 HEX_NUM_BASE            equ 16d
 
-tablet_string db 'Sweet February with Valentine!$'
-atoi10_error_msg db 'atoi10: string contains non-decimal characters$'
-atoi16_error_msg db 'atoi16: string contains non-hex characters$'
+tablet_string           db 'Sweet February with Valentine!$'
+atoi10_error_msg        db 'atoi10: string contains non-decimal characters$'
+atoi16_error_msg        db 'atoi16: string contains non-hex characters$'
+split_text_error_msg    db 'split_text: the word does not fit on the line$'
 
+LINE_BREAK_CHAR         db "@$"
+TEXT_END_CHAR           db "&$"
+
+CARRIAGE_RET_CHAR db 0Dh, '$'
 RS1 db "+=+|.|+=+$"
 RS2 db "0-0I*I0-0$"
 
 STYLES_ARR dw offset RS1, offset RS2
+
+string_arr_width        equ 100
+string_arr_height       equ 30
+
+string_arr db string_arr_width*string_arr_height dup(?)
+
 
 .code
 org 100h
@@ -106,6 +116,7 @@ org 100h
 
 start:
                 mov     si, ARGS_ADDR                   ; si = 1st arg addr
+
                 call    atoi_10                         ; bx = atoi_10(1st arg)
                 mov     cx, bx                          ; cx(rect_width) = bx(atoi10 ret val)
 
@@ -167,6 +178,162 @@ USER_STYLE:
                 int 21h                                 ;| exit(0)
 
 
+;##########################################
+;               scan_next_word
+;------------------------------------------
+;------------------------------------------
+; Descr:
+;       Scan word by DS:SI addr
+;       Return it's length
+;       Return word terminating sim
+; Entry:
+;       DS:SI   ; src text addr
+; Return:
+;       CX      ; length of scaned word
+;       DL      ; word terminating sim
+;
+; Desroy:
+;       CX, DL
+;------------------------------------------
+scan_next_word  proc
+                cld                                     ; DF = 0 (++)
+
+                push    si ax
+                cld                                     ; DF = 1 (++)
+                xor     cx, cx
+                xor     dx, dx
+@@while:;-----------------------------------------------; while (al != 0) {
+                xor     ax, ax                          ;       ax = 0
+                lodsb                                   ;       al = ds:[si++]
+
+                cmp     al, 20h                         ;|if ax == <space>(20h): jmp end
+                je      @@end                           ;|
+
+                cmp     al, LINE_BREAK_CHAR             ;|if ax == LINE_BREAK_CHAR: jmp end
+                je      @@end                           ;|
+
+                cmp     al, TEXT_END_CHAR
+                je      @@end
+
+                cmp     al, CARRIAGE_RET_CHAR            ;|if ax == <carriage return> (0Dh): jmp end
+                je      @@end                           ;|
+
+                inc     cx
+                jmp     @@while
+;-------------------------------------------------------; while end }
+@@end:
+                mov     dl, al
+                pop     ax si
+                ret
+                endp
+;------------------------------------------
+;##########################################
+
+;##########################################
+;               memncpy
+;------------------------------------------
+;------------------------------------------
+; Descr:
+;       copy word of len=CX from DS:SI to ES:DI
+;
+; Entry:
+;       CX      ; word len
+;       DS:SI   ; src addr
+;       ES:DI   ; dest addr
+; Desroy:
+;       CX
+;------------------------------------------
+memncpy         proc
+
+                push ax si
+                cld                                     ; DF = 0 (++)
+
+@@while:;-----------------------------------------------; while (CX != 0) {
+                lodsb                                   ;       al = ds:[si++]
+                stosw                                   ;       es:[di++] = ax
+                loop @@while
+;-------------------------------------------------------; while end }
+                pop si ax
+                ret
+                endp
+;------------------------------------------
+;##########################################
+
+;##########################################
+;               split_text
+;------------------------------------------
+;------------------------------------------
+; Descr:
+;       Split text into lines in string_arr
+;       Do line breaks if len of line > CX
+;       if line break is impossible split_text will return error
+;       if line cnt > string_arr_width split_text will return error
+;
+;       a line break character is stored in LINE_BREAK_CHAR constant
+; Entry:
+;       DS:SI       ; src text addr
+;       ES:DI       ; output text array addr
+;       AX          ; line length (should be < 128)
+;
+; Desroy:
+;
+;------------------------------------------
+split_text      proc
+
+                mov     bx, 1d                          ;| bx - cur word string index, string[0] = len_of_line
+                xor     dx, dx
+@@while:;-----------------------------------------------; while (Al != 0) {
+                cmp     dl, TEXT_END_CHAR
+                je      @@end
+
+                call    scan_next_word                  ;| cx - new word len
+                inc     cx                              ;| (including space char)
+
+                cmp     cx, ax                          ;|
+                jg      @@error                         ;| if (cx > line len) -> error
+
+                add     bx, cx                          ;| bx += len(word)
+                cmp     bx, ax                          ;|
+                jg      @@line_break                    ;| if (cur_line_pos > line_len) -> line_break
+
+                call    memncpy
+
+                cmp     dl, LINE_BREAK_CHAR             ;| if line_break -> new_line
+                je      @@new_line                      ;|
+
+                cmp     dl, TEXT_END_CHAR               ;| if text end -> text end
+                je      @@new_line
+
+                jmp @@while
+
+@@line_break:
+                sub     bx, cx
+@@new_line:
+                sub     di, bx                          ;|
+                dec     di                              ;|
+                mov     es:[di], bx                     ;| string_arr[0] = len of line
+                add     di, bx                          ;|
+                inc     di                              ;|
+
+                xchg    bx, ax                          ;|
+                sub     bx, ax                          ;|
+                xchg    bx, ax                          ;| line break
+                add     di, bx                          ;| di += (ax - bx)
+                mov     bx, 1d                          ;|
+
+                add     bx, cx
+                call    memncpy
+
+                jmp     @@while
+;-------------------------------------------------------; while end }
+@@end:
+                ret
+@@error:
+                CALL_SPLIT_TEXT_ERROR_PROC
+endp
+
+;------------------------------------------
+;##########################################
 
 ;##########################################
 ;               draw_pat_line
@@ -286,7 +453,7 @@ jg @@while;---------------------------------------------; while end }
 ; Entry:
 ;
 ;       CONSOLE_HEIGH
-;        CONSOLE_WIDTH
+;       CONSOLE_WIDTH
 ;       BX      - rectangle height
 ;       CX      - rectangle width
 ; Destr: DI
@@ -339,7 +506,8 @@ draw_string     proc
 @@while:;-----------------------------------------------; while (CX != 0) {
                 lodsb                                   ;       al = ds:[si++]
 
-                CHECK_END_OF_STRING
+                cmp     al, CARRIAGE_RET_CHAR            ;|if ax == <carriage return>(0Dh): jmp end
+                je      @@end
 
                 stosw                                   ;       es:[di++] = ax
                 jmp @@while
@@ -378,7 +546,11 @@ atoi_10         proc
                 xor     ax, ax                          ;       ax = 0
                 lodsb                                   ;       al = ds:[si++]
 
-                CHECK_END_OF_STRING
+                cmp     al, 20h                         ;|if ax == <space>(20h): jmp end
+                je      @@end                           ;|
+
+                cmp     al, CARRIAGE_RET_CHAR           ;|if ax == <carriage return>(0Dh): jmp end
+                je      @@end                           ;|
 
                 ATOI_CHECK_DECIMAL_CHAR
 
@@ -430,7 +602,11 @@ atoi_16         proc
                 xor     ax, ax                          ;       ax = 0
                 lodsb                                   ;       al = ds:[si++]
 
-                CHECK_END_OF_STRING
+                cmp     al, 20h                         ;|if ax == <space>(20h): jmp end
+                je      @@end                           ;|
+
+                cmp     al, CARRIAGE_RET_CHAR           ;|if ax == <carriage return>(0Dh): jmp end
+                je      @@end                           ;|
 
                 ATOI_CHECK_HEX_CHAR
 
