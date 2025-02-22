@@ -2,6 +2,65 @@
 .186
 locals @@
 
+ATOI_CHECK_DECIMAL_CHAR macro
+                cmp     al, 30h                         ;|if (ax < '0') -> jmp error
+                jl      @@error                         ;|
+                cmp     al, 39h                         ;|if (ax > '9') -> jmp error
+                jg      @@error                         ;|
+endm
+
+ATOI_CHECK_HEX_CHAR macro
+                cmp     al, 30h                         ;|if (al < '0') -> jmp error
+                jl      @@error                         ;|
+
+                cmp     al, 66h                         ;|if (ax > 'f') -> jmp error
+                jg      @@error                         ;|
+
+
+                cmp     al, 39h                         ;|if ('9' < al < 'A') -> jmp error
+                jle     @@leter_check_upper_end         ;|
+@@leter_check_upper:                                    ;|
+                cmp     al, 41h                         ;|
+                jl      @@error                         ;|
+@@leter_check_upper_end:                                ;|
+
+
+                cmp     al, 46h                         ;|if ('F' < al < 'a') -> jmp error
+                jle     @@leter_check2_lower_end        ;|
+@@leter_check_lower:                                    ;|
+                cmp     al, 61h                         ;|
+                jl      @@error                         ;|
+@@leter_check2_lower_end:                               ;|
+endm
+
+
+CALL_ATOI_10_ERROR_PROC macro
+                mov     ah, 09h                          ;|
+                mov     dx, offset atoi10_error_msg      ;|print(atoi10_error_msg)
+                int     21h                              ;|
+
+                mov     ax, 4c01h                        ;|
+                int     21h                              ;|exit(1)
+endm
+CALL_SPLIT_TEXT_ERROR_PROC macro
+                mov     ah, 09h                          ;|
+                mov     dx, offset atoi16_error_msg      ;|print(split_text_error_msg)
+                int     21h                              ;|
+
+                mov     ax, 4c01h                        ;|
+                int     21h
+endm
+
+CALL_ATOI_16_ERROR_PROC macro
+                mov     ah, 09h                          ;|
+                mov     dx, offset atoi16_error_msg      ;|print(atoi16_error_msg)
+                int     21h                              ;|
+
+                mov     ax, 4c01h                        ;|
+                int     21h                              ;|exit(1)
+endm
+
+
 .code
 org 100h
 
@@ -560,67 +619,6 @@ endp
 
 
 .data
-
-ATOI_CHECK_DECIMAL_CHAR macro
-                cmp     al, 30h                         ;|if (ax < '0') -> jmp error
-                jl      @@error                         ;|
-                cmp     al, 39h                         ;|if (ax > '9') -> jmp error
-                jg      @@error                         ;|
-endm
-
-ATOI_CHECK_HEX_CHAR macro
-                cmp     al, 30h                         ;|if (al < '0') -> jmp error
-                jl      @@error                         ;|
-
-                cmp     al, 66h                         ;|if (ax > 'f') -> jmp error
-                jg      @@error                         ;|
-
-
-                cmp     al, 39h                         ;|if ('9' < al < 'A') -> jmp error
-                jle     @@leter_check_upper_end         ;|
-@@leter_check_upper:                                    ;|
-                cmp     al, 41h                         ;|
-                jl      @@error                         ;|
-@@leter_check_upper_end:                                ;|
-
-
-                cmp     al, 46h                         ;|if ('F' < al < 'a') -> jmp error
-                jle     @@leter_check2_lower_end        ;|
-@@leter_check_lower:                                    ;|
-                cmp     al, 61h                         ;|
-                jl      @@error                         ;|
-@@leter_check2_lower_end:                               ;|
-endm
-
-
-CALL_ATOI_10_ERROR_PROC macro
-                mov     ah, 09h                          ;|
-                mov     dx, offset atoi10_error_msg      ;|print(atoi10_error_msg)
-                int     21h                              ;|
-
-                mov     ax, 4c01h                        ;|
-                int     21h                              ;|exit(1)
-endm
-CALL_SPLIT_TEXT_ERROR_PROC macro
-                mov     ah, 09h                          ;|
-                mov     dx, offset atoi16_error_msg      ;|print(split_text_error_msg)
-                int     21h                              ;|
-
-                mov     ax, 4c01h                        ;|
-                int     21h
-endm
-
-CALL_ATOI_16_ERROR_PROC macro
-                mov     ah, 09h                          ;|
-                mov     dx, offset atoi16_error_msg      ;|print(atoi16_error_msg)
-                int     21h                              ;|
-
-                mov     ax, 4c01h                        ;|
-                int     21h                              ;|exit(1)
-endm
-
-
-
 ARGS_ADDR               equ 0082h
 DEC_DIGITS_SHIFT        equ 30h
 UPPERCASE_HEX_SHIFT     equ 37h

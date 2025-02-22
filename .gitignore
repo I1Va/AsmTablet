@@ -3,10 +3,8 @@
 *.MAP
 *.OBJ
 
-*.com
-*.lst
-*.com
-*.obj
-
-docs/*
+./test.asm
+prevs/
+extra/
 temp
+a
