@@ -91,6 +91,8 @@ start:
                 call    input_rect_style
                 push    si                              ; save last com arg addr
 
+                call    tablet_centering
+
                 mov     bx, VIDEOSEG
                 mov     es, bx
                 mov     di, RECT_ADDR
@@ -106,7 +108,6 @@ start:
 
                 mov     di, RECT_ADDR
                 add     di, (80 * 2 + 2) * 2            ; DI = addr of label addr on screen
-                pop     di                              ; restore rect corner addr
                 mov     ah, LABEL_COLOR_ATTR            ; label color attr
 
                 call    draw_string                     ;|draw_string
@@ -322,29 +323,34 @@ jg @@while;---------------------------------------------; while end }
 
 
 ;##########################################
-;               align_cord_cmp
+;               tablet_centering
 ;------------------------------------------
 ;------------------------------------------
 ; Descr:
 ;       compute addr of left upper corner of center aligned rectangle
+;       uses information from tablet data section
+;       changes RECT_ADDR
 ; Entry:
-;       CONSOLE_HEIGH
+;       CONSOLE_HEIGHT
 ;       CONSOLE_WIDTH
-;       BX      - rectangle height
-;       CX      - rectangle width
-; Destr: DI
+;       RECT_HEIGHT
+;       RECT_WIDTH
+; Destr: None
 ; Return:
-;       DI - addr of left upper corner
+;        RECT_ADDR
 ;------------------------------------------
-; WARNING: bx, cx should less than CONSOLE_HEIGH, CONSOLE_WIDTH
+; WARNING: RECT_HEIGHT, RECT_WIDTH should less than CONSOLE_HEIGHT, CONSOLE_WIDTH
 ;------------------------------------------
-align_cord_cmp  proc
-                push    ax                              ; save ax
-                xor     ax, ax                          ; ax = 0
+tablet_centering    proc
 
-                mov     al, CONSOLE_HEIGH               ;|
+                push    ax bx cx di                  ; save registers
+                xor     ax, ax                          ; ax = 0
+                mov     bx, RECT_HEIGHT                 ; bx = RECT_HEIGHT
+                mov     cx, RECT_WIDTH                  ; cx = RECT_WIDTH
+
+                mov     al, CONSOLE_HEIGHT              ;|
                 sub     ax, bx                          ;|
-                shr     ax, 1                           ;| ax = (CONSOLE_HEIGH - bx) / 2 * 80 * 2
+                shr     ax, 1                           ;| ax = (CONSOLE_HEIGHT - bx) / 2 * 80 * 2
                 mul     CONSOLE_WIDTH                   ;|
                 shl     ax, 1                           ;|
 
@@ -358,7 +364,9 @@ align_cord_cmp  proc
 
                 add     di, ax                          ; di += ax.
                                                         ; di - addr of left upper corner of center aligned rectangle
-                pop ax
+                mov     RECT_ADDR, di                   ; RECT_ADDR = di
+
+                pop     di cx bx ax                  ; regs resotre
 
                 ret
                 endp
@@ -371,7 +379,7 @@ align_cord_cmp  proc
 ;------------------------------------------
 ; Descr:
 ;       Draws a string by addr ES:DI untill
-;       <space> (20h) or <carriage return> (0Dh)
+;       <carriage return> (0Dh)
 ; Entry:
 ;       AH      ; color attr
 ;       DS:SI   ; string memory addr
@@ -540,7 +548,7 @@ DEC_DIGITS_SHIFT        equ 30h
 UPPERCASE_HEX_SHIFT     equ 37h
 LOWERCASE_HEX_SHIFT     equ 57h
 CONSOLE_WIDTH           db 80d
-CONSOLE_HEIGH           db 25d
+CONSOLE_HEIGHT           db 25d
 CONSOLE_SCROLLING_CNT   equ 2d
 
 VIDEOSEG                equ 0b800h
