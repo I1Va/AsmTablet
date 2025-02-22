@@ -80,57 +80,34 @@ start:
                 mov     si, ARGS_ADDR                   ; si = 1st arg addr
 
                 call    atoi_10                         ; bx = atoi_10(1st arg)
-                mov     cx, bx                          ; cx(rect_width) = bx(atoi10 ret val)
+                mov     RECT_WIDTH, bx                  ; RECT_WIDTH = bx
 
                 call    atoi_10                         ; bx(rect_height) = atoi_10(2nd arg)
+                mov     RECT_HEIGHT, bx                 ; RECT_HEIGHT = bx
 
-                push    bx                              ; save bx(rect_height)
-                call    atoi_16                         ;|
+                call    atoi_16                         ; bl = rect color attr
+                mov     RECT_COLOR_ATTR, bl             ; RECT_COLOR_ATTR = bl
 
+                call    input_rect_style
+                push    si                              ; save last com arg addr
 
-                mov     ah, bl                          ;| ah(color attr) = atoi(3rd arg)
-
-
-                pop     bx                              ; restore bx(rect_height)
-
-                push    bx                              ; save bx(rect_height)
-                push    ax                              ; save ax(rect color attr)
-
-                call    atoi_10                         ; bx = style_mode(4rd arg)
-                cmp     bx, 0                           ;|if (bx == 0):
-                je      USER_STYLE                      ;|      (5th arg = custom user style)
-                dec     bx                              ;|else:
-                add     bx, bx                          ;|      di - addr of style with index = (bx - 1)
-                mov     di, bx                          ;|      (di = (bx - 1) * 2)
-
-
-                mov     bp, si                          ;| save si (addr of current arg).
-                                                        ;| I use mov, because push will cause confusion after USER_STYLE:
-
-                mov     si, STYLES_ARR[di]              ; rect style pattern addr
-
-USER_STYLE:
-                mov     dx, VIDEOSEG                    ;|
-                mov     es, dx                          ;|es = VIDEOSEG
-
-                pop     ax                              ; restore ax(color attr)
-                pop     bx                              ; restore bx(rect_height)
-
-                call    align_cord_cmp                  ;|align_cord_cmp:
-                                                        ;|      Entry: CONSOLE_HEIGH, CONSOLE_WIDTH, BX, CX
-                                                        ;|      Return: DI
-                                                        ;|      Destr: DI
-
-                push    di                              ; save rect corner addr
-
+                mov     bx, VIDEOSEG
+                mov     es, bx
+                mov     di, RECT_ADDR
+                mov     si, offset RECT_STYLE
+                mov     cx, RECT_WIDTH
+                mov     bx, RECT_HEIGHT
+                mov     ah, RECT_COLOR_ATTR
                 call    draw_rect                       ;|draw_rect:
                                                         ;|      Entry:   AH, DS:SI, BX, CX, ES:DI
                                                         ;|      Destroy: AX, SI
 
-                pop     di                              ; restore rect corner addr
-                mov     si, bp                          ; restore si(addr of current arg)
-                mov     ah, 11001110b                   ; label color attr
+                pop     si                              ; restore last com arg addr
+
+                mov     di, RECT_ADDR
                 add     di, (80 * 2 + 2) * 2            ; DI = addr of label addr on screen
+                pop     di                              ; restore rect corner addr
+                mov     ah, LABEL_COLOR_ATTR            ; label color attr
 
                 call    draw_string                     ;|draw_string
                                                         ;|      Entry:    AH, DS:SI, ES:DI
@@ -138,6 +115,53 @@ USER_STYLE:
 
                 mov ax, 4c00h                           ;|
                 int 21h                                 ;| exit(0)
+
+
+;##########################################
+;           input_rect_style
+;------------------------------------------
+;------------------------------------------
+; Descr:
+;       scan rect style mode from comand line args (PSP)
+;       if mode == 0 -> scan user style string into RECT_STYLE
+;       else -> copy built-in style into RECT_STYLE
+;       after execution, SI will point to the next command line argument
+; Entry:
+;       DS:SI   - style mode addr in PSP
+; Desroy:
+;       AX, BX, CX, SI, DI, ES
+;------------------------------------------
+input_rect_style proc
+                call    atoi_10                         ; bx = style_mode(4rd arg)
+                cmp     bx, 0
+                je      @@scan_user_style
+@@set_built_in_style:
+                push    si
+
+                dec     bx
+                mov     si, BUILT_IN_STYLES[bx]
+
+                push    cs
+                pop     es
+                mov     di, offset RECT_STYLE
+
+                mov     cx, RECT_STYLE_LEN
+                rep     movsw
+
+                pop     si
+                jmp     @@end
+
+@@scan_user_style:
+                push    cs
+                pop     es
+                mov     di, offset RECT_STYLE
+                mov     cx, RECT_STYLE_LEN
+                rep     movsw
+@@end:
+                ret
+                endp
+;------------------------------------------
+;##########################################
 
 
 ;##########################################
@@ -192,113 +216,7 @@ scan_next_word  proc
 ;##########################################
 
 ;##########################################
-;               memncpy
-;------------------------------------------
-;------------------------------------------
-; Descr:
-;       copy word of len=CX from DS:SI to ES:DI
-;
-; Entry:
-;       CX      ; word len
-;       DS:SI   ; src addr
-;       ES:DI   ; dest addr
-; Desroy:
-;       CX
-;------------------------------------------
-memncpy         proc
-
-                push ax si
-                cld                                     ; DF = 0 (++)
-
-@@while:;-----------------------------------------------; while (CX != 0) {
-                lodsb                                   ;       al = ds:[si++]
-                stosw                                   ;       es:[di++] = ax
-                loop @@while
-;-------------------------------------------------------; while end }
-                pop si ax
-                ret
-                endp
-;------------------------------------------
-;##########################################
-
-;##########################################
-;               split_text
-;------------------------------------------
-;------------------------------------------
-; Descr:
-;       Split text into lines in string_arr
-;       Do line breaks if len of line > CX
-;       if line break is impossible split_text will return error
-;       if line cnt > string_arr_width split_text will return error
-;
-;       a line break character is stored in LINE_BREAK_CHAR constant
-; Entry:
-;       DS:SI       ; src text addr
-;       ES:DI       ; output text array addr
-;       AX          ; line length (should be < 128)
-;
-; Desroy:
-;       ?
-;------------------------------------------
-split_text      proc
-
-                mov     bx, 1d                          ;| bx - cur word string index, string[0] = len_of_line
-                xor     dx, dx
-@@while:;-----------------------------------------------; while (Al != 0) {
-                cmp     dl, TEXT_END_CHAR
-                je      @@end
-
-                call    scan_next_word                  ;| cx - new word len
-                inc     cx                              ;| (including space char)
-
-                cmp     cx, ax                          ;|
-                jg      @@error                         ;| if (cx > line len) -> error
-
-                add     bx, cx                          ;| bx += len(word)
-                cmp     bx, ax                          ;|
-                jg      @@line_break                    ;| if (cur_line_pos > line_len) -> line_break
-
-                call    memncpy
-
-                cmp     dl, LINE_BREAK_CHAR             ;| if line_break -> new_line
-                je      @@new_line                      ;|
-
-                cmp     dl, TEXT_END_CHAR               ;| if text end -> text end
-                je      @@new_line
-
-                jmp @@while
-
-@@line_break:
-                sub     bx, cx
-@@new_line:
-                sub     di, bx                          ;|
-                dec     di                              ;|
-                mov     es:[di], bx                     ;| string_arr[0] = len of line
-                add     di, bx                          ;|
-                inc     di                              ;|
-
-                xchg    bx, ax                          ;|
-                sub     bx, ax                          ;|
-                xchg    bx, ax                          ;| line break
-                add     di, bx                          ;| di += (ax - bx)
-                mov     bx, 1d                          ;|
-
-                add     bx, cx
-                call    memncpy
-
-                jmp     @@while
-;-------------------------------------------------------; while end }
-@@end:
-                ret
-@@error:
-                CALL_SPLIT_TEXT_ERROR_PROC
-endp
-
-;------------------------------------------
-;##########################################
-
-;##########################################
-;               draw_pat_line
+;               draw_pattern_line
 ;------------------------------------------
 ;------------------------------------------
 ; Descr:
@@ -311,7 +229,7 @@ endp
 ; Desroy:
 ;       AL, BX, CX, SI, DI
 ;------------------------------------------
-draw_pat_line   proc
+draw_pattern_line   proc
                 cld                                     ; DF = 0 (++)
 
                 lodsb                                   ; al = ds:[si++]
@@ -354,18 +272,14 @@ draw_pat_line   proc
 ;       AX, SI
 ;------------------------------------------
 draw_rect       proc
-                push bx                                 ;|
-                push cx                                 ;|reg saving
-                push di                                 ;|
+                push    bx cx di                            ; reg saving                                ;|
 
-                call draw_pat_line                      ; call draw_pat_line
+                call    draw_pattern_line                   ; call draw_pattern_line
 
-                pop di                                  ;|
-                pop cx                                  ;|reg restoring
-                pop bx                                  ;|
+                pop     di cx bx                            ; reg restore
 
-                add di, 160                             ;|next line
-                sub bx, 2                               ;|
+                add     di, 160                             ;|next line
+                sub     bx, 2                               ;|
 
 @@while:;-----------------------------------------------; while (BX > 0) {
                 push bx                                 ;|
@@ -374,7 +288,7 @@ draw_rect       proc
 
                 push si                                 ;       save pattern middle triad addr
 
-                call draw_pat_line                      ;       call draw_pat_line
+                call draw_pattern_line                      ;       call draw_pattern_line
 
                 pop si                                  ;       restore patterm middle triad addr
 
@@ -392,7 +306,7 @@ jg @@while;---------------------------------------------; while end }
                 push cx                                 ;|reg saving
                 push di                                 ;|
 
-                call draw_pat_line                      ; call draw_pat_line
+                call draw_pattern_line                      ; call draw_pattern_line
 
                 pop di                                  ;|
                 pop cx                                  ;|reg restoring
@@ -414,7 +328,6 @@ jg @@while;---------------------------------------------; while end }
 ; Descr:
 ;       compute addr of left upper corner of center aligned rectangle
 ; Entry:
-;
 ;       CONSOLE_HEIGH
 ;       CONSOLE_WIDTH
 ;       BX      - rectangle height
@@ -422,6 +335,8 @@ jg @@while;---------------------------------------------; while end }
 ; Destr: DI
 ; Return:
 ;       DI - addr of left upper corner
+;------------------------------------------
+; WARNING: bx, cx should less than CONSOLE_HEIGH, CONSOLE_WIDTH
 ;------------------------------------------
 align_cord_cmp  proc
                 push    ax                              ; save ax
@@ -472,7 +387,7 @@ draw_string     proc
                 cmp     al, CARRIAGE_RET_CHAR            ;|if ax == <carriage return>(0Dh): jmp end
                 je      @@end
 
-                stosw                                   ;       es:[di++] = ax
+                stosw                                   ; es:[di+=2] = ax
                 jmp @@while
 ;-------------------------------------------------------; while end }
 @@end:
@@ -647,12 +562,25 @@ CARRIAGE_RET_CHAR db 0Dh, '$'
 RS1 db "+=+|.|+=+$"
 RS2 db "0-0I*I0-0$"
 
-STYLES_ARR dw offset RS1, offset RS2
+BUILT_IN_STYLES dw offset RS1, offset RS2
 
 string_arr_width        equ 100
 string_arr_height       equ 30
 
 string_arr db string_arr_width*string_arr_height dup(?)
+
+;##########################################
+;           tablet info
+;##########################################
+RECT_STYLE_LEN          equ 9d
+RECT_STYLE              dw  RECT_STYLE_LEN dup(?)
+RECT_COLOR_ATTR         db  00h
+RECT_HEIGHT             dw  0000h
+RECT_WIDTH              dw  0000h
+RECT_ADDR               dw  0000h
+LABEL_COLOR_ATTR        db  11001110b
+
+;##########################################
 
 end start
 
