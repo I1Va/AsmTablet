@@ -79,56 +79,21 @@ org 100h
 start:
                 mov     si, ARGS_ADDR                   ; si = 1st arg addr
 
-                call    atoi_10                         ; bx = atoi_10(1st arg)
-                mov     RECT_WIDTH, bx                  ; RECT_WIDTH = bx
-                sub     bx, 2d                          ;|
-                mov     LABEL_RECT_WIDTH, bx            ;| LABEL_RECT_WIDTH = RECT_WIDTH - 2
-
-                call    atoi_10                         ; bx(rect_height) = atoi_10(2nd arg)
-                mov     RECT_HEIGHT, bx                 ; RECT_HEIGHT = bx
-                sub     bx, 2                           ;|
-                mov     LABEL_RECT_HEIGHT, bx           ;| LABEL_RECT_HEIGHT = RECT_HEIGHT - 2
-
-                call    atoi_16                         ; bl = rect color attr
-                mov     RECT_COLOR_ATTR, bl             ; RECT_COLOR_ATTR = bl
-                call    input_rect_style
-
-                call    tablet_centering
-
-                mov     bx, CONSOLE_WIDTH               ;|
-                inc     bx                              ;|
-                shl     bx, 1d                          ;| LABEL_RECT_ADDR = RECT_ADDR + (CONSOLE_WIDTH + 1) * 2
-                add     bx, RECT_ADDR                   ;|
-                mov     LABEL_RECT_ADDR, bx             ;|
-
-                push    si                              ; save last com arg addr
-                mov     bx, VIDEOSEG
-                mov     es, bx
-                mov     di, RECT_ADDR
-                mov     si, offset RECT_STYLE
-                mov     cx, RECT_WIDTH
-                mov     bx, RECT_HEIGHT
-                mov     ah, RECT_COLOR_ATTR
-                call    clear_screen
-                call    draw_rect                       ;|draw_rect: ENTR(AH, DS:SI, BX, CX, ES:DI), DESTR(AX, SI)
-                pop     si                              ; restore last com arg addr
-
-                ; si - bias of user label string
                 push    cs
                 pop     es
-                mov     di, offset STR_ARR
-                mov     ax, LABEL_RECT_WIDTH
+                mov     di, offset string_arr
+                mov     ax, 15d
+
                 call    split_text
 
-                mov     dx, LABEL_RECT_HEIGHT
-                mov     cx, LABEL_RECT_WIDTH
+                mov     dx, 15d
+                mov     cx, 15d
                 mov     ax, VIDEOSEG
                 mov     es, ax
-                mov     di, LABEL_RECT_ADDR
-                mov     ah, LABEL_COLOR_ATTR
-                mov     si, offset STR_ARR
+                mov     di, 80 * 2 * 2
+                mov     ah, 01001110b
+                mov     si, offset string_arr
                 call    print_string_arr
-
 
 
 
@@ -136,68 +101,6 @@ start:
                 mov     ax, 4c00h                       ;|
                 int     21h                             ;| exit(0)
 
-
-;##########################################
-;               clear_screen
-;------------------------------------------
-;------------------------------------------
-; Descr:
-;       Clears screen
-; Entry:
-;       None
-; Destr:
-;       None
-;------------------------------------------
-clear_screen proc
-                push ax bx cx dx
-
-                mov ax, 0620h
-                mov bx, 0h
-                mov cx, 0h
-                mov dx, 1998h
-                int 10h
-
-                pop dx cx bx ax
-
-                ret
-                endp
-;------------------------------------------
-;##########################################
-
-
-;##########################################
-;             draw_n_chars
-;------------------------------------------
-;------------------------------------------
-; Descr:
-;       Draws CX chars by addr ES:DI
-; Entry:
-;       AH      ; color attr
-;       CX      ; string len
-;       DS:SI   ; string memory addr
-;       ES:DI   ; line beginning addr
-; Desroy:
-;       AL, BX, CX, SI, DI
-;------------------------------------------
-draw_n_chars    proc
-
-                push    ax bx cx si di                  ; save regs
-
-                cld                                     ; DF = 0 (++)
-@@while:;-----------------------------------------------; while (CX != 0) {
-                lodsb                                   ;       al = ds:[si++]
-                stosw                                   ;       es:[di+=2] = ax
-                dec     cx
-                cmp     cx, 0h
-                jne @@while
-;-------------------------------------------------------; while end }
-@@end:
-                pop     di si cx bx ax                  ; restore regs
-
-                ret
-                endp
-;------------------------------------------
-;##########################################
 
 
 
@@ -246,6 +149,264 @@ print_string_arr proc
                 endp
 ;------------------------------------------
 ;##########################################
+
+;##########################################
+;               string_arr_dump
+;------------------------------------------
+;------------------------------------------
+; Descr:
+;       Dump string_arr in left upper corner
+; Entry:
+;           DX  -  lines cnt
+;           CX  -  line length
+;
+; Desroy: None
+;------------------------------------------------------;
+string_arr_dump proc
+                push    ax bx cx dx si di es ds
+
+                mov     ax, VIDEOSEG
+                mov     es, ax
+                mov     di, 80 * 2 * 2
+
+                mov     ah, 01001110b
+
+                mov     si, offset string_arr
+
+@@while:
+
+                mov     bl, [si]                        ; string_arr[0] - len of line
+
+                push    di
+                push    si
+
+                call    draw_8bits                      ; Entry: AH, BL, ES:DI. Destr: None
+
+                inc     si
+                add     di, 2 * 2
+                call    draw_n_chars
+
+                pop     si
+                pop     di
+
+                add     si, cx
+                inc     si
+                add     di, CONSOLE_WIDTH * 2d
+
+                dec     dx
+                cmp     dx, 0d
+                jne     @@while
+
+                pop     ds es di si dx cx bx ax
+                ret
+                endp
+;------------------------------------------
+;##########################################
+
+
+;##########################################
+;               draw_8bits
+;------------------------------------------
+;------------------------------------------
+; Descr:
+;       Draws a hex presentation of 8 bits number on ES:DI addr
+; Entry:
+;       AH      ; color attr
+;       BL      ; input number
+;       ES:DI   ; line beginning addr
+; Desroy: None
+;------------------------------------------------------;
+draw_8bits     proc
+
+                push    ax bx cx dx di
+
+                mov     dl, bl                          ; save bx
+                xor     cx, cx                          ; cx = 0
+                cld                                     ; DF = 0 (++)
+@@WHILE:;-----------------------------------------------;
+                mov     bl, dl                          ; restore bx
+
+                shl     bl, cl                          ; mov char number of cl to
+                shr     bl, 4d                         ; lower place
+
+                cmp     bx, 10                          ; bx - digit?
+                jl      @@DIGITS
+@@LETTERS:
+                add     bx, 7h                          ;|
+@@DIGITS:                                               ;| bx -> ASCII
+                add     bx, DIGITS_SHIFT                ;|
+
+                mov     al, bl                          ;| al - ASCII code
+                stosw                                   ;| es:[di+=2] = ax
+
+                add     cl, 4d                          ;| next char
+
+                cmp     cl, 8d                         ;| if 2 char were written -> end
+                jne     @@WHILE
+;WHILE_END----------------------------------------------;
+
+                pop     di dx cx bx ax
+                ret
+                endp
+;------------------------------------------
+;##########################################
+
+
+;##########################################
+;               scan_next_word
+;------------------------------------------
+;------------------------------------------
+; Descr:
+;       Scan word by DS:SI addr
+;       Return it's length
+;       Return word terminating sim
+; Entry:
+;       DS:SI   ; src text addr
+; Return:
+;       CX      ; length of scaned word
+;       DL      ; word end sim
+;
+; Desroy:
+;       AX, CX, DL
+;------------------------------------------
+scan_next_word  proc
+                push    si ax                           ; reg save
+
+                cld                                     ; DF = 0 (++)
+
+                xor     cx, cx                          ; cx = 0
+                xor     dx, dx                          ; dx = 0
+
+@@while:;-----------------------------------------------; while (al != word end sim) {
+                lodsb                                   ;       al = ds:[si++]
+                mov     dl, al
+
+                cmp     al, 20h                         ;|if ax == <space>(20h): jmp end
+
+                je      @@end                           ;|
+
+                cmp     al, LINE_BREAK_CHAR             ;|if ax == LINE_BREAK_CHAR: jmp end
+                je      @@end                           ;|
+
+                cmp     al, TEXT_END_CHAR
+                je      @@end
+
+                cmp     al, CARRIAGE_RET_CHAR           ;| if ax == <carriage return> (0Dh): jmp end
+                je      @@end                           ;|
+
+                inc     cx
+
+                jmp     @@while
+;-------------------------------------------------------; while end }
+@@end:
+                mov     dl, al
+                pop     ax si                           ; reg restore
+                ret
+                endp
+;------------------------------------------
+;##########################################
+
+;##########################################
+;               split_text
+;------------------------------------------
+;------------------------------------------
+; Descr:
+;       Split text into lines in string_arr
+;       Do line breaks if len of line > AX
+;       if line break is impossible split_text will return error
+;       if line cnt > string_arr_width split_text will return error
+;
+;       a line break character is stored in LINE_BREAK_CHAR constant
+; Entry:
+;       DS:SI       ; src text addr
+;       ES:DI       ; output text array addr
+;       AX          ; line length (should be < 128)
+;
+; Desroy:
+;       AX, BX, CX, DX, SI, DI
+;------------------------------------------
+; WARNING:
+;           words len should be less than 128
+;           if you store addr of com line arg in ES
+;            you should do extra check, that
+;             com args len isn't zero and ES points to the text
+;------------------------------------------
+split_text      proc
+
+                xor     dx, dx
+                xor     bx, bx                          ; line_len
+                inc     di                              ; string[0] = line_len
+
+@@while:;-----------------------------------------------; while () {
+                call    scan_next_word                  ;| cx - new word len
+                cmp     dl, SPACE_CHAR                  ; if dl == ' ' -> cx++
+                jne     @@word_proc
+                inc     cx
+@@word_proc:
+                cmp     cx, ax                          ;|
+                jg      @@error                         ;| if (cx > line_len) -> error
+
+                add     bx, cx                          ;| bx += len(word)
+                cmp     bx, ax                          ;| if (cur_line_len + len(word) > max_line_len) -> line_break
+                jg      @@line_break                    ;|
+
+                rep     movsb                           ;| while(cx--) : es:[di++] = ds:[si++]
+                cmp     dl, SPACE_CHAR
+                je      @@not_skip_end_sim
+                inc     si
+@@not_skip_end_sim:
+
+                cmp     dl, LINE_BREAK_CHAR             ;| if line_break -> new_line
+                je      @@new_line                      ;|
+
+                cmp     dl, TEXT_END_CHAR               ;| if text end -> text end
+                je      @@text_end
+
+                cmp     dl, CARRIAGE_RET_CHAR           ;| if text end -> text end
+                je      @@new_line
+
+                jmp @@while
+
+@@text_end:
+                sub     bx, cx                          ; bx - char_idx before adding overflowing word
+                sub     di, bx
+                dec     di
+                mov     es:[di], bl                     ; string_arr[0] - line len
+                jmp     @@end
+
+@@line_break:
+                sub     bx, cx                          ; bx - char_idx before adding overflowing word
+                sub     di, bx
+                dec     di
+                mov     es:[di], bl                     ; string_arr[0] - line len
+
+                add     di, ax                          ; next_line
+                inc     di
+                inc     di
+
+                xor     bx, bx
+
+                jmp     @@word_proc
+
+
+@@new_line:
+                sub     di, bx
+                dec     di
+                mov     es:[di], bl                     ; string_arr[0] - line len
+
+                add     di, ax                          ; next_line
+                inc     di
+                inc     di
+
+                xor     bx, bx
+
+                jmp     @@while
+;-------------------------------------------------------; while end }
+@@end:
+                ret
+@@error:
+                CALL_SPLIT_TEXT_ERROR_PROC
+endp
 
 
 ;##########################################
@@ -393,163 +554,6 @@ jg @@while;---------------------------------------------; while end }
 
 
 
-;##########################################
-;               scan_next_word
-;------------------------------------------
-;------------------------------------------
-; Descr:
-;       Scan word by DS:SI addr
-;       Return it's length
-;       Return word terminating sim
-; Entry:
-;       DS:SI   ; src text addr
-; Return:
-;       CX      ; length of scaned word
-;       DL      ; word end sim
-;
-; Desroy:
-;       CX, DL
-;------------------------------------------
-scan_next_word  proc
-                push    si ax                           ; reg save
-
-                cld                                     ; DF = 0 (++)
-
-                xor     cx, cx                          ; cx = 0
-                xor     dx, dx                          ; dx = 0
-
-@@while:;-----------------------------------------------; while (al != word end sim) {
-                lodsb                                   ;       al = ds:[si++]
-                mov     dl, al
-
-                cmp     al, 20h                         ;|if ax == <space>(20h): jmp end
-
-                je      @@end                           ;|
-
-                cmp     al, LINE_BREAK_CHAR             ;|if ax == LINE_BREAK_CHAR: jmp end
-                je      @@end                           ;|
-
-                cmp     al, TEXT_END_CHAR
-                je      @@end
-
-                cmp     al, CARRIAGE_RET_CHAR           ;| if ax == <carriage return> (0Dh): jmp end
-                je      @@end                           ;|
-
-                inc     cx
-
-                jmp     @@while
-;-------------------------------------------------------; while end }
-@@end:
-                mov     dl, al
-                pop     ax si                           ; reg restore
-                ret
-                endp
-;------------------------------------------
-;##########################################
-
-;##########################################
-;               split_text
-;------------------------------------------
-;------------------------------------------
-; Descr:
-;       Split text into lines in str_arr
-;       Do line breaks if len of line > AX
-;       if line break is impossible split_text will return error
-;       if line cnt > str_arr_width split_text will return error
-;
-;       a line break character is stored in LINE_BREAK_CHAR constant
-; Entry:
-;       DS:SI       ; src text addr
-;       ES:DI       ; output text array addr
-;       AX          ; line length (should be < 128)
-;
-; Desroy:
-;       AX, BX, CX, DX, SI, DI
-;------------------------------------------
-; WARNING:
-;           words len should be less than 128
-;           if you store addr of com line arg in ES
-;            you should do extra check, that
-;             com args len isn't zero and ES points to the text
-;------------------------------------------
-split_text      proc
-
-                xor     dx, dx
-                xor     bx, bx                          ; line_len
-                inc     di                              ; string[0] = line_len
-
-@@while:;-----------------------------------------------; while () {
-                call    scan_next_word                  ;| cx - new word len
-                cmp     dl, SPACE_CHAR                  ; if dl == ' ' -> cx++
-                jne     @@word_proc
-                inc     cx
-@@word_proc:
-                cmp     cx, ax                          ;|
-                jg      @@error                         ;| if (cx > line_len) -> error
-
-                add     bx, cx                          ;| bx += len(word)
-                cmp     bx, ax                          ;| if (cur_line_len + len(word) > max_line_len) -> line_break
-                jg      @@line_break                    ;|
-
-                rep     movsb                           ;| while(cx--) : es:[di++] = ds:[si++]
-                cmp     dl, SPACE_CHAR
-                je      @@not_skip_end_sim
-                inc     si
-@@not_skip_end_sim:
-
-                cmp     dl, LINE_BREAK_CHAR             ;| if line_break -> new_line
-                je      @@new_line                      ;|
-
-                cmp     dl, TEXT_END_CHAR               ;| if text end -> text end
-                je      @@text_end
-
-                cmp     dl, CARRIAGE_RET_CHAR           ;| if text end -> text end
-                je      @@new_line
-
-                jmp @@while
-
-@@text_end:
-                sub     bx, cx                          ; bx - char_idx before adding overflowing word
-                sub     di, bx
-                dec     di
-                mov     es:[di], bl                     ; str_arr[0] - line len
-                jmp     @@end
-
-@@line_break:
-                sub     bx, cx                          ; bx - char_idx before adding overflowing word
-                sub     di, bx
-                dec     di
-                mov     es:[di], bl                     ; str_arr[0] - line len
-
-                add     di, ax                          ; next_line
-                inc     di
-                inc     di
-
-                xor     bx, bx
-
-                jmp     @@word_proc
-
-
-@@new_line:
-                sub     di, bx
-                dec     di
-                mov     es:[di], bl                     ; str_arr[0] - line len
-
-                add     di, ax                          ; next_line
-                inc     di
-                inc     di
-
-                xor     bx, bx
-
-                jmp     @@while
-;-------------------------------------------------------; while end }
-@@end:
-                ret
-@@error:
-                CALL_SPLIT_TEXT_ERROR_PROC
-endp
-;------------------------------------------
-;##########################################
 
 
 ;##########################################
@@ -629,6 +633,40 @@ draw_string     proc
                 jmp @@while
 ;-------------------------------------------------------; while end }
 @@end:
+                ret
+                endp
+;------------------------------------------
+;##########################################
+
+;##########################################
+;             draw_n_chars
+;------------------------------------------
+;------------------------------------------
+; Descr:
+;       Draws CX chars by addr ES:DI
+; Entry:
+;       AH      ; color attr
+;       CX      ; string len
+;       DS:SI   ; string memory addr
+;       ES:DI   ; line beginning addr
+; Desroy:
+;       AL, BX, CX, SI, DI
+;------------------------------------------
+draw_n_chars    proc
+
+                push    ax bx cx si di                  ; save regs
+
+                cld                                     ; DF = 0 (++)
+@@while:;-----------------------------------------------; while (CX != 0) {
+                lodsb                                   ;       al = ds:[si++]
+                stosw                                   ;       es:[di+=2] = ax
+                dec     cx
+                cmp     cx, 0h
+                jne @@while
+;-------------------------------------------------------; while end }
+@@end:
+                pop     di si cx bx ax                  ; restore regs
+
                 ret
                 endp
 ;------------------------------------------
@@ -774,12 +812,16 @@ endp
 
 .data
 ARGS_ADDR               equ 0082h
-DEC_DIGITS_SHIFT        equ 30h
-UPPERCASE_HEX_SHIFT     equ 37h
-LOWERCASE_HEX_SHIFT     equ 57h
-CONSOLE_SCROLLING_CNT   equ 2d
+DEC_DIGITS_SHIFT        equ 0030h
+UPPERCASE_HEX_SHIFT     equ 0037h
+DIGITS_SHIFT            equ 0030h
+LOWERCASE_HEX_SHIFT     equ 0057h
 CONSOLE_WIDTH           equ 80d
 CONSOLE_HEIGHT          equ 25d
+
+CONSOLE_SCROLLING_CNT   equ 2d
+
+TEMP_VAR                dw  5d
 
 VIDEOSEG                equ 0b800h
 X_CORD                  equ 5d
@@ -797,15 +839,16 @@ LINE_BREAK_CHAR         equ '@'
 TEXT_END_CHAR           equ '&'
 SPACE_CHAR              equ ' '
 
+
+CONSOLE_WIDTH_BYTE      db CONSOLE_WIDTH
+CONSOLE_HEIGHT_BYTE     db CONSOLE_HEIGHT
+
 CARRIAGE_RET_CHAR db 0Dh, '$'
 RS1 db "+=+|.|+=+$"
 RS2 db "0-0I*I0-0$"
 
 BUILT_IN_STYLES dw offset RS1, offset RS2
 
-
-CONSOLE_WIDTH_BYTE      db CONSOLE_WIDTH
-CONSOLE_HEIGHT_BYTE     db CONSOLE_HEIGHT
 ;##########################################
 ;           tablet info
 ;##########################################
@@ -821,15 +864,10 @@ RECT_ADDR               dw  0000h
 ;##########################################
 ;           label info
 ;##########################################
-LABEL_COLOR_ATTR        db  01001110b
-LABEL_RECT_WIDTH        dw  0000h
-LABEL_RECT_HEIGHT       dw  0000h
-LABEL_RECT_ADDR         dw  0000h
-STR_ARR_SZ              equ 1000h
-STR_ARR                 db str_arr_sz dup(0h)
+LABEL_COLOR_ATTR        db  11001110b
 ;##########################################
 
-
+string_arr              db  3000 dup('#')
 
 
 end start
