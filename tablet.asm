@@ -42,6 +42,16 @@ CALL_ATOI_10_ERROR_PROC macro
                 mov     ax, 4c01h                        ;|
                 int     21h                              ;|exit(1)
 endm
+
+CALL_DRAW_LABEL_ERROR_PROC macro
+                mov     ah, 09h                          ;|
+                mov     dx, offset label_error_msg       ;|print(atoi10_error_msg)
+                int     21h                              ;|
+
+                mov     ax, 4c01h                        ;|
+                int     21h                              ;|exit(1)
+endm
+
 CALL_SPLIT_TEXT_ERROR_PROC macro
                 mov     ah, 09h                          ;|
                 mov     dx, offset split_text_error_msg  ;|print(split_text_error_msg)
@@ -168,6 +178,8 @@ start:
 ;       None
 ;------------------------------------------
 draw_label proc
+                cmp     bp, LABEL_RECT_HEIGHT
+                jg      @@height_overflow_error
 
                 mov     di, LABEL_RECT_ADDR             ; di - dst start
 
@@ -214,8 +226,11 @@ draw_label proc
                 mov     ah, LABEL_COLOR_ATTR            ;|
                 mov     si, offset STR_ARR              ;|
                 call    print_string_arr                ;  ENTR(DS:SI, ES:DI, DX, CX, AX), Destr(BX, SI, DI, DX, BP)
-
                 ret
+
+@@height_overflow_error:
+                CALL_DRAW_LABEL_ERROR_PROC
+
                 endp
 ;------------------------------------------
 ;##########################################
@@ -912,41 +927,62 @@ endp
 
 
 .data
+
+;##########################################
+;           general constatns
+;##########################################
 ARGS_ADDR               equ 0082h
-DEC_DIGITS_SHIFT        equ 30h
-UPPERCASE_HEX_SHIFT     equ 37h
-LOWERCASE_HEX_SHIFT     equ 57h
 CONSOLE_WIDTH           equ 80d
 CONSOLE_HEIGHT          equ 25d
 CONSOLE_SCROLLING_DELTA equ (2 * CONSOLE_WIDTH) * 2
 VIDEOSEG                equ 0b800h
-X_CORD                  equ 5d
-Y_CORD                  equ 5d
+;##########################################
 
+;##########################################
+;           atoi constatns
+;##########################################
 DEC_NUM_BASE            db 10d
 HEX_NUM_BASE            equ 16d
+DEC_DIGITS_SHIFT        equ 30h
+UPPERCASE_HEX_SHIFT     equ 37h
+LOWERCASE_HEX_SHIFT     equ 57h
+;##########################################
 
-tablet_string           db 'Sweet February with Valentine!$'
-atoi10_error_msg        db 'atoi10: string contains non-decimal characters$'
-atoi16_error_msg        db 'atoi16: string contains non-hex characters$'
-split_text_error_msg    db 'split_text: the word does not fit on the line$'
-
+;##########################################
+;           string constatns
+;##########################################
 LINE_BREAK_CHAR         equ '@'
 TEXT_END_CHAR           equ '&'
 SPACE_CHAR              equ ' '
-
 CARRIAGE_RET_CHAR db 0Dh, '$'
+;##########################################
 
+;##########################################
+;                TMP
+;##########################################
+CONSOLE_WIDTH_BYTE      db CONSOLE_WIDTH
+CONSOLE_HEIGHT_BYTE     db CONSOLE_HEIGHT
+;##########################################
+
+;##########################################
+;           error messages
+;##########################################
+atoi10_error_msg        db 'atoi10: string contains non-decimal characters$'
+atoi16_error_msg        db 'atoi16: string contains non-hex characters$'
+split_text_error_msg    db 'split_text: the word does not fit on the line$'
+label_error_msg         db 'draw_label: the text does not fit on the label box$'
+;##########################################
+
+;##########################################
+;           tablet constatns
+;##########################################
 RS1 db "+=+|.|+=+$"
 RS2 db "0-0I*I0-0$"
 RS3 db "╔═╗║║.╚═╝$"
 RS4 db "/^\!.!\_/$"
-
 BUILT_IN_STYLES dw offset RS1, offset RS2, offset RS3, offset RS4
+;##########################################
 
-
-CONSOLE_WIDTH_BYTE      db CONSOLE_WIDTH
-CONSOLE_HEIGHT_BYTE     db CONSOLE_HEIGHT
 ;##########################################
 ;           tablet info
 ;##########################################
