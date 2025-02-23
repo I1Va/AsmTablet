@@ -91,7 +91,11 @@ start:
 
                 call    atoi_16                         ; bl = rect color attr
                 mov     RECT_COLOR_ATTR, bl             ; RECT_COLOR_ATTR = bl
+
                 call    input_rect_style
+
+                call    atoi_16
+                mov     LABEL_ALIGN_MODE, bl
 
                 call    tablet_centering
 
@@ -120,21 +124,96 @@ start:
                 mov     ax, LABEL_RECT_WIDTH
                 call    split_text
 
-                mov     dx, LABEL_RECT_HEIGHT
-                mov     cx, LABEL_RECT_WIDTH
-                mov     ax, VIDEOSEG
-                mov     es, ax
-                mov     di, LABEL_RECT_ADDR
-                mov     ah, LABEL_COLOR_ATTR
-                mov     si, offset STR_ARR
-                call    print_string_arr
-
-
-
+                mov     al, LABEL_ALIGN_MODE
+                call    draw_label
 
 
                 mov     ax, 4c00h                       ;|
                 int     21h                             ;| exit(0)
+
+
+;##########################################
+;               draw_label
+;------------------------------------------
+;------------------------------------------
+; Descr:
+;       Draws text label in rectangle
+; Entry:
+;           LABEL_RECT_HEIGHT
+;           LABEL_RECT_WIDTH
+;           VIDEOSEG
+;           LABEL_RECT_ADDR
+;           LABEL_COLOR_ATTR
+;           STR_ARR
+;           AL                  ; aligning mode
+;           BP                  ; lines cnt
+;------------------------------------------------------------------
+;           ->aligning mode (AL):
+;           [x] 1st bit : if = 1 : aligning on the center
+;           [x] 2nd bit : if = 1 : aligning on the right edge
+;           [x] 3rd bit : <reserved>
+;           [x] 4th bit : <reserved>
+;           aligns on the left edge by default (1,2 bits = 0)
+;           -----------
+;           [x] 5th bit : if = 1 : aligning to the center height
+;           [x] 6th bit : if = 1 : aligning to the bottom
+;           [x] 7th bit : <reserved>
+;           [x] 8th bit : <reserved>
+;           aligns to the top by default (5,6 bits = 0)
+;------------------------------------------------------------------
+;
+; Destr:
+;       None
+;------------------------------------------
+draw_label proc
+
+                mov     di, LABEL_RECT_ADDR
+
+                mov     cx, ax
+                xor     ax, ax
+
+
+                test    cl, 00001000b
+                jnz     @@center_align
+
+                test    cl, 00000100b
+                jnz     @@bottom_align
+
+                jmp     @@top_align
+
+@@center_align:
+                mov     ax, bp
+                sub     ax, LABEL_RECT_HEIGHT
+                neg     ax
+                shr     ax, 1d
+                mul     CONSOLE_WIDTH_BYTE
+                shl     ax, 1d
+                add     di, ax
+                jmp     @@top_align
+
+@@bottom_align:
+                mov     ax, bp
+                sub     ax, LABEL_RECT_HEIGHT
+                neg     ax
+                mul     CONSOLE_WIDTH_BYTE
+                shl     ax, 1d
+                add     di, ax
+                jmp     @@top_align
+@@top_align:
+
+                mov     ax, cx
+                mov     dx, LABEL_RECT_HEIGHT
+                mov     cx, VIDEOSEG
+                mov     es, cx
+                mov     cx, LABEL_RECT_WIDTH
+                mov     ah, LABEL_COLOR_ATTR
+                mov     si, offset STR_ARR
+                call    print_string_arr
+
+                ret
+                endp
+;------------------------------------------
+;##########################################
 
 
 ;##########################################
@@ -185,11 +264,13 @@ draw_n_chars    proc
 
                 cld                                     ; DF = 0 (++)
 @@while:;-----------------------------------------------; while (CX != 0) {
+                cmp     cx, 0h
+                je      @@end
+
                 lodsb                                   ;       al = ds:[si++]
                 stosw                                   ;       es:[di+=2] = ax
                 dec     cx
-                cmp     cx, 0h
-                jne @@while
+                jmp     @@while
 ;-------------------------------------------------------; while end }
 @@end:
                 pop     di si cx bx ax                  ; restore regs
@@ -207,17 +288,25 @@ draw_n_chars    proc
 ;------------------------------------------
 ; Descr:
 ;           Print string_arr lines to ES:DI addr
+;
+;           Aligns string
+;               to the center          if AL = 1000xxxxb
+;               to the right side      if Al = 0100xxxxb
+;               else to the left side
+;
+;
 ; Entry:
 ;           DS:SI   -  string_arr addr (src)
 ;           ES:DI   -  dest addr
 ;           DX      -  lines cnt
 ;           CX      -  line length
+;           AL      -  aligning mode
 ;           AH      -  color attr
 ;
 ; Constants:
 ;           CONSOLE_WIDTH
 ;
-; Desroy:   BX, SI, DI, DX
+; Desroy:   BX, SI, DI, DX, BP
 ;------------------------------------------------------;
 ; WARNING:
 ;       this functions work with UCSD Strings (Pascal strings)
@@ -227,15 +316,49 @@ draw_n_chars    proc
 print_string_arr proc
 
 @@while:
+                xor     bx, bx                          ; bx = 0
+                mov     bl, [si]                        ; bx = string_arr[0] - len of line
+                mov     bp, bx
+                xor     bx, bx
 
-                mov     bl, [si]                        ; string_arr[0] - len of line
+                test    al, 10000000b
+                jnz     @@center_allign
+                test    al, 01000000b
+                jnz     @@right_allign
+
+                jmp     @@allign_left
+
+@@center_allign:
+                mov     bx, bp
+                sub     bx, LABEL_RECT_WIDTH
+                neg     bx
+                shr     bx, 1d
+                shl     bx, 1d
+                jmp     @@allign_left
+
+@@right_allign:
+                mov     bx, bp
+                sub     bx, LABEL_RECT_WIDTH
+                neg     bx
+                shl     bx, 1d
+                jmp     @@allign_left
+
+
+@@allign_left:
 
                 inc     si
+
+                add     di, bx
+                xchg    cx, bp
                 call    draw_n_chars
+                xchg    cx, bp
+                sub     di, bx
+
                 dec     si
 
                 add     si, cx
                 inc     si
+
                 add     di, CONSOLE_WIDTH * 2d
 
                 dec     dx
@@ -463,8 +586,10 @@ scan_next_word  proc
 ;       ES:DI       ; output text array addr
 ;       AX          ; line length (should be < 128)
 ;
+; Return:
+;       BP          ; lines cnt
 ; Desroy:
-;       AX, BX, CX, DX, SI, DI
+;       AX, BX, CX, DX, SI, DI, BP
 ;------------------------------------------
 ; WARNING:
 ;           words len should be less than 128
@@ -474,6 +599,7 @@ scan_next_word  proc
 ;------------------------------------------
 split_text      proc
 
+                xor     bp, bp
                 xor     dx, dx
                 xor     bx, bx                          ; line_len
                 inc     di                              ; string[0] = line_len
@@ -504,7 +630,7 @@ split_text      proc
                 je      @@text_end
 
                 cmp     dl, CARRIAGE_RET_CHAR           ;| if text end -> text end
-                je      @@new_line
+                je      @@text_end
 
                 jmp @@while
 
@@ -513,6 +639,7 @@ split_text      proc
                 sub     di, bx
                 dec     di
                 mov     es:[di], bl                     ; str_arr[0] - line len
+                inc     bp
                 jmp     @@end
 
 @@line_break:
@@ -522,6 +649,7 @@ split_text      proc
                 mov     es:[di], bl                     ; str_arr[0] - line len
 
                 add     di, ax                          ; next_line
+                inc     bp
                 inc     di
                 inc     di
 
@@ -536,6 +664,8 @@ split_text      proc
                 mov     es:[di], bl                     ; str_arr[0] - line len
 
                 add     di, ax                          ; next_line
+                inc     bp
+
                 inc     di
                 inc     di
 
@@ -825,6 +955,7 @@ LABEL_COLOR_ATTR        db  01001110b
 LABEL_RECT_WIDTH        dw  0000h
 LABEL_RECT_HEIGHT       dw  0000h
 LABEL_RECT_ADDR         dw  0000h
+LABEL_ALIGN_MODE        db  00h
 STR_ARR_SZ              equ 1000h
 STR_ARR                 db str_arr_sz dup(0h)
 ;##########################################
