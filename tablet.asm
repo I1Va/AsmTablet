@@ -72,7 +72,8 @@ org 100h
 ;        style_mode
 ;                if (style_mode == 0) :
 ;                        style string
-;        message
+;        label align mode
+;        label message
 ;------------------------------------------
 
 
@@ -89,15 +90,15 @@ start:
                 sub     bx, 2                           ;|
                 mov     LABEL_RECT_HEIGHT, bx           ;| LABEL_RECT_HEIGHT = RECT_HEIGHT - 2
 
-                call    atoi_16                         ; bl = rect color attr
-                mov     RECT_COLOR_ATTR, bl             ; RECT_COLOR_ATTR = bl
+                call    atoi_16                         ;| bl = rect color attr
+                mov     RECT_COLOR_ATTR, bl             ;| RECT_COLOR_ATTR = bl
 
-                call    input_rect_style
+                call    input_rect_style                ; input number of built-in style or user custom style pattern
 
-                call    atoi_16
-                mov     LABEL_ALIGN_MODE, bl
+                call    atoi_16                         ;| ALIGN_MODE: check draw label description
+                mov     LABEL_ALIGN_MODE, bl            ;|
 
-                call    tablet_centering
+                call    tablet_centering                ;  centering tablet on the screen using CONSOLE_SCROLLING_DELTA
 
                 mov     bx, CONSOLE_WIDTH               ;|
                 inc     bx                              ;|
@@ -106,24 +107,25 @@ start:
                 mov     LABEL_RECT_ADDR, bx             ;|
 
                 push    si                              ; save last com arg addr
-                mov     bx, VIDEOSEG
-                mov     es, bx
-                mov     di, RECT_ADDR
-                mov     si, offset RECT_STYLE
-                mov     cx, RECT_WIDTH
-                mov     bx, RECT_HEIGHT
-                mov     ah, RECT_COLOR_ATTR
-                call    clear_screen
+                mov     bx, VIDEOSEG                    ;|
+                mov     es, bx                          ;|
+                mov     di, RECT_ADDR                   ;| preparing args for draw_rect
+                mov     si, offset RECT_STYLE           ;|
+                mov     cx, RECT_WIDTH                  ;|
+                mov     bx, RECT_HEIGHT                 ;|
+                mov     ah, RECT_COLOR_ATTR             ;|
+                call    clear_screen                    ;
                 call    draw_rect                       ;|draw_rect: ENTR(AH, DS:SI, BX, CX, ES:DI), DESTR(AX, SI)
                 pop     si                              ; restore last com arg addr
 
-                ; si - bias of user label string
-                push    cs
-                pop     es
-                mov     di, offset STR_ARR
-                mov     ax, LABEL_RECT_WIDTH
-                call    split_text
+                ; si - bias of user label string        ;|
+                push    cs                              ;|
+                pop     es                              ;| preparing args for split_text
+                mov     di, offset STR_ARR              ;|
+                mov     ax, LABEL_RECT_WIDTH            ;|
+                call    split_text                      ; split_text: ENTR(DS:SI, ES:DI, AX), RET(BP), DESTR(AX, BX, CX, DX, SI, DI, BP)
 
+                ; bp - lines cnt
                 mov     al, LABEL_ALIGN_MODE
                 call    draw_label
 
@@ -167,10 +169,10 @@ start:
 ;------------------------------------------
 draw_label proc
 
-                mov     di, LABEL_RECT_ADDR
+                mov     di, LABEL_RECT_ADDR             ; di - dst start
 
-                mov     cx, ax
-                xor     ax, ax
+                mov     cx, ax                          ; save ax(align mode)
+                xor     ax, ax                          ; prepare ax for calculations(ax = 0)
 
 
                 test    cl, 00001000b
@@ -179,36 +181,39 @@ draw_label proc
                 test    cl, 00000100b
                 jnz     @@bottom_align
 
-                jmp     @@top_align
+                jmp     @@top_align                     ; default align
 
 @@center_align:
-                mov     ax, bp
-                sub     ax, LABEL_RECT_HEIGHT
-                neg     ax
-                shr     ax, 1d
-                mul     CONSOLE_WIDTH_BYTE
-                shl     ax, 1d
+                mov     ax, bp                          ;|
+                sub     ax, LABEL_RECT_HEIGHT           ;|
+                neg     ax                              ;| ax = ((LABEL_RECT_HEIGHT - LINES_CNT) // 2) * CONSOLE_WIDTH * 2
+                shr     ax, 1d                          ;|
+                mul     CONSOLE_WIDTH_BYTE              ;|
+                shl     ax, 1d                          ;|
+
                 add     di, ax
                 jmp     @@top_align
 
 @@bottom_align:
-                mov     ax, bp
-                sub     ax, LABEL_RECT_HEIGHT
-                neg     ax
-                mul     CONSOLE_WIDTH_BYTE
-                shl     ax, 1d
+                mov     ax, bp                          ;|
+                sub     ax, LABEL_RECT_HEIGHT           ;|
+                neg     ax                              ;| ax = (LABEL_RECT_HEIGHT - LINES_CNT) * CONSOLE_WIDTH * 2
+                mul     CONSOLE_WIDTH_BYTE              ;|
+                shl     ax, 1d                          ;|
+
                 add     di, ax
                 jmp     @@top_align
 @@top_align:
 
-                mov     ax, cx
-                mov     dx, LABEL_RECT_HEIGHT
-                mov     cx, VIDEOSEG
-                mov     es, cx
-                mov     cx, LABEL_RECT_WIDTH
-                mov     ah, LABEL_COLOR_ATTR
-                mov     si, offset STR_ARR
-                call    print_string_arr
+                mov     ax, cx                          ; restore ax(align mode)
+
+                mov     dx, LABEL_RECT_HEIGHT           ;|
+                mov     cx, VIDEOSEG                    ;|
+                mov     es, cx                          ;| preparing args for print_string_arr
+                mov     cx, LABEL_RECT_WIDTH            ;|
+                mov     ah, LABEL_COLOR_ATTR            ;|
+                mov     si, offset STR_ARR              ;|
+                call    print_string_arr                ;  ENTR(DS:SI, ES:DI, DX, CX, AX), Destr(BX, SI, DI, DX, BP)
 
                 ret
                 endp
@@ -230,11 +235,15 @@ draw_label proc
 clear_screen proc
                 push ax bx cx dx
 
-                mov ax, 0620h
-                mov bx, 0h
-                mov cx, 0h
-                mov dx, 1998h
-                int 10h
+                mov al, CONSOLE_HEIGHT_BYTE             ; al = CONSOLE_HEIGHT (number of lines to scroll)
+                mov ah, 06h                             ; ah = 06 (scroll window)
+
+                mov bx, 0h                              ; video attr
+
+                mov cx, 0h                              ; CH, CL - row, clm of lower-right corner of rectangle to scroll blank
+                mov dx, 1998h                           ; DH, DL - row, clm of upper-left corner of rectangle to scroll/blank
+
+                int 10h                                 ; call videosrevices
 
                 pop dx cx bx ax
 
@@ -318,8 +327,8 @@ print_string_arr proc
 @@while:
                 xor     bx, bx                          ; bx = 0
                 mov     bl, [si]                        ; bx = string_arr[0] - len of line
-                mov     bp, bx
-                xor     bx, bx
+                mov     bp, bx                          ; save cur line length
+                xor     bx, bx                          ; bx = 0
 
                 test    al, 10000000b
                 jnz     @@center_allign
@@ -329,39 +338,38 @@ print_string_arr proc
                 jmp     @@allign_left
 
 @@center_allign:
-                mov     bx, bp
-                sub     bx, LABEL_RECT_WIDTH
-                neg     bx
-                shr     bx, 1d
-                shl     bx, 1d
+                mov     bx, bp                          ;|
+                sub     bx, LABEL_RECT_WIDTH            ;|
+                neg     bx                              ;| bx = ((LABEL_RECT_WIDTH - LINE_LEN) // 2) * 2
+                shr     bx, 1d                          ;|
+                shl     bx, 1d                          ;|
                 jmp     @@allign_left
 
 @@right_allign:
-                mov     bx, bp
-                sub     bx, LABEL_RECT_WIDTH
-                neg     bx
-                shl     bx, 1d
+                mov     bx, bp                          ;|
+                sub     bx, LABEL_RECT_WIDTH            ;|
+                neg     bx                              ;| bx = (LABEL_RECT_WIDTH - LINE_LEN) * 2
+                shl     bx, 1d                          ;|
                 jmp     @@allign_left
 
 
 @@allign_left:
 
-                inc     si
+                inc     si                              ; skip pascal string first byte (str[0] = len)
 
-                add     di, bx
-                xchg    cx, bp
+                add     di, bx                          ; accounting alignment
+                xchg    cx, bp                          ; save cx
                 call    draw_n_chars
-                xchg    cx, bp
-                sub     di, bx
+                xchg    cx, bp                          ; resore cx
+                sub     di, bx                          ; restore di
 
-                dec     si
+                dec     si                              ; restore si
 
-                add     si, cx
-                inc     si
+                add     si, cx                          ;| next line
+                inc     si                              ;|
+                add     di, CONSOLE_WIDTH * 2d          ;|
+                dec     dx                              ;|
 
-                add     di, CONSOLE_WIDTH * 2d
-
-                dec     dx
                 cmp     dx, 0d
                 jne     @@while
 
@@ -390,27 +398,27 @@ input_rect_style proc
                 cmp     bx, 0
                 je      @@scan_user_style
 @@set_built_in_style:
-                push    si
+                push    si                              ; save si
 
-                dec     bx
+                dec     bx                              ;|
+                shl     bx, 1d                          ;| index praparing
                 mov     si, BUILT_IN_STYLES[bx]
 
-                push    cs
-                pop     es
-                mov     di, offset RECT_STYLE
-
-                mov     cx, RECT_STYLE_LEN
-                rep     movsw
+                push    cs                              ;|
+                pop     es                              ;|
+                mov     di, offset RECT_STYLE           ;| copy actual rect style to RECT_STYLE
+                mov     cx, RECT_STYLE_LEN              ;|
+                rep     movsw                           ;|
 
                 pop     si
                 jmp     @@end
 
 @@scan_user_style:
-                push    cs
-                pop     es
-                mov     di, offset RECT_STYLE
-                mov     cx, RECT_STYLE_LEN
-                rep     movsw
+                push    cs                              ;|
+                pop     es                              ;|
+                mov     di, offset RECT_STYLE           ;| copy actual rect style to RECT_STYLE
+                mov     cx, RECT_STYLE_LEN              ;|
+                rep     movsw                           ;|
 @@end:
                 ret
                 endp
@@ -708,22 +716,23 @@ tablet_centering    proc
                 mov     bx, RECT_HEIGHT                 ; bx = RECT_HEIGHT
                 mov     cx, RECT_WIDTH                  ; cx = RECT_WIDTH
 
-                mov     al, CONSOLE_HEIGHT_BYTE              ;|
+                mov     al, CONSOLE_HEIGHT_BYTE         ;|
                 sub     ax, bx                          ;|
                 shr     ax, 1                           ;| ax = (CONSOLE_HEIGHT_BYTE - bx) / 2 * 80 * 2
-                mul     CONSOLE_WIDTH_BYTE                   ;|
+                mul     CONSOLE_WIDTH_BYTE              ;|
                 shl     ax, 1                           ;|
 
                 mov     di, ax                          ; di = ax
                 xor     ax, ax                          ; ax = 0
 
-                mov     al, CONSOLE_WIDTH_BYTE               ;|
+                mov     al, CONSOLE_WIDTH_BYTE          ;|
                 sub     ax, cx                          ;|
                 shr     ax, 1                           ;| ax = (CONSOLE_WIDTH_BYTE - cx) / 2 * 2
                 shl     ax, 1                           ;|
 
                 add     di, ax                          ; di += ax.
                                                         ; di - addr of left upper corner of center aligned rectangle
+                add     di, CONSOLE_SCROLLING_DELTA     ;
                 mov     RECT_ADDR, di                   ; RECT_ADDR = di
 
                 pop     di cx bx ax                  ; regs resotre
@@ -907,10 +916,9 @@ ARGS_ADDR               equ 0082h
 DEC_DIGITS_SHIFT        equ 30h
 UPPERCASE_HEX_SHIFT     equ 37h
 LOWERCASE_HEX_SHIFT     equ 57h
-CONSOLE_SCROLLING_CNT   equ 2d
 CONSOLE_WIDTH           equ 80d
 CONSOLE_HEIGHT          equ 25d
-
+CONSOLE_SCROLLING_DELTA equ (2 * CONSOLE_WIDTH) * 2
 VIDEOSEG                equ 0b800h
 X_CORD                  equ 5d
 Y_CORD                  equ 5d
@@ -928,10 +936,13 @@ TEXT_END_CHAR           equ '&'
 SPACE_CHAR              equ ' '
 
 CARRIAGE_RET_CHAR db 0Dh, '$'
+
 RS1 db "+=+|.|+=+$"
 RS2 db "0-0I*I0-0$"
+RS3 db "╔═╗║║.╚═╝$"
+RS4 db "/^\!.!\_/$"
 
-BUILT_IN_STYLES dw offset RS1, offset RS2
+BUILT_IN_STYLES dw offset RS1, offset RS2, offset RS3, offset RS4
 
 
 CONSOLE_WIDTH_BYTE      db CONSOLE_WIDTH
