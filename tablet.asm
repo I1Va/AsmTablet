@@ -423,7 +423,7 @@ input_rect_style proc
                 pop     es                              ;|
                 mov     di, offset RECT_STYLE           ;| copy actual rect style to RECT_STYLE
                 mov     cx, RECT_STYLE_LEN              ;|
-                rep     movsw                           ;|
+                rep     movsb                           ;|
 
                 pop     si
                 jmp     @@end
@@ -433,7 +433,8 @@ input_rect_style proc
                 pop     es                              ;|
                 mov     di, offset RECT_STYLE           ;| copy actual rect style to RECT_STYLE
                 mov     cx, RECT_STYLE_LEN              ;|
-                rep     movsw                           ;|
+                rep     movsb                           ;|
+                inc     si                              ; skip space
 @@end:
                 ret
                 endp
@@ -934,7 +935,7 @@ endp
 ARGS_ADDR               equ 0082h
 CONSOLE_WIDTH           equ 80d
 CONSOLE_HEIGHT          equ 25d
-CONSOLE_SCROLLING_DELTA equ (2 * CONSOLE_WIDTH) * 2
+CONSOLE_SCROLLING_DELTA equ (1 * CONSOLE_WIDTH) * 2
 VIDEOSEG                equ 0b800h
 ;##########################################
 
