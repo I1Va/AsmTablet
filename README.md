@@ -66,7 +66,7 @@ $ tablet.com 20 20 4e 0 "+-+|.|+-+" 88 ["Happy valentines day@ 14 february&"]
 
 ## Examples
 
-![alt text](example1.png)
+![alt text](imgs/example1.png)
 ```sh
 $ tablet.com 30 20 4e 1 88 "From any infinite system of intervals covering a segment of the number line, one can choose???"
 ```
